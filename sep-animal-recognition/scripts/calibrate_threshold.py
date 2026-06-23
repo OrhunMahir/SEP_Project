@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 from animal_recognition.data import ManifestDataset, evaluation_transform, load_split
 from animal_recognition.metrics import classification_metrics
-from animal_recognition.models import CustomCNN
+from animal_recognition.models import build_model
 from animal_recognition.thresholding import apply_confidence_threshold
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -115,13 +115,10 @@ def main() -> None:
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
     checkpoint_config = checkpoint.get("config", config)
-    if checkpoint.get("model_name") != "custom_cnn":
-        raise ValueError("This calibration script currently supports only the custom_cnn checkpoint.")
+    if checkpoint.get("model_name") != checkpoint_config["model"]["name"]:
+        raise ValueError("Checkpoint model name does not match its saved configuration.")
 
-    model = CustomCNN(
-        num_outputs=int(checkpoint_config["model"]["num_outputs"]),
-        dropout=float(checkpoint_config["model"]["dropout"]),
-    ).to(device)
+    model = build_model(checkpoint_config["model"]).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
 
     data_config = checkpoint_config["data"]

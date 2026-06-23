@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train the scratch Custom CNN baseline and select the best checkpoint by macro-F1."""
+"""Train a scratch model and select the best checkpoint by validation macro-F1."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from animal_recognition.data import (
     load_split,
     training_transform,
 )
-from animal_recognition.models import CustomCNN, count_trainable_parameters
+from animal_recognition.models import build_model, count_trainable_parameters
 from animal_recognition.training import (
     evaluate_model,
     set_seed,
@@ -94,10 +94,7 @@ def main() -> None:
         pin_memory=device.type == "cuda",
     )
 
-    model = CustomCNN(
-        num_outputs=int(config["model"]["num_outputs"]),
-        dropout=float(config["model"]["dropout"]),
-    ).to(device)
+    model = build_model(config["model"]).to(device)
     criterion = nn.CrossEntropyLoss(label_smoothing=float(training_config["label_smoothing"]))
     optimizer = torch.optim.AdamW(
         model.parameters(),

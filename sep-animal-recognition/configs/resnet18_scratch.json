@@ -1,0 +1,25 @@
+{
+  "experiment_name": "resnet18_scratch",
+  "seed": 42,
+  "model": {
+    "name": "resnet18",
+    "num_outputs": 21,
+    "dropout": 0.0
+  },
+  "data": {
+    "image_size": 224,
+    "batch_size": 32,
+    "num_workers": 4,
+    "train_split": "splits/train_seed42.csv",
+    "validation_split": "splits/val_seed42.csv"
+  },
+  "training": {
+    "max_epochs": 50,
+    "warmup_epochs": 5,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "label_smoothing": 0.1,
+    "early_stopping_patience": 10
+  },
+  "output_dir": "runs/resnet18_scratch"
+}
