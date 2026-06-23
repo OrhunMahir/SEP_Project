@@ -3,7 +3,6 @@
 #SBATCH --partition=NvidiaAll
 #SBATCH --time=03:00:00
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
 #SBATCH --output=slurm_logs/%x_%j.out
 #SBATCH --error=slurm_logs/%x_%j.err
 
