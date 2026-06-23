@@ -19,8 +19,9 @@ metrics.
 """
 
 import argparse
-import random
+import os
 from pathlib import Path
+import sys
 
 import pandas as pd
 import torch
@@ -28,6 +29,14 @@ import torch.nn as nn
 from PIL import Image
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from tqdm import tqdm
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+SOURCE_ROOT = PROJECT_ROOT / "sep-animal-recognition" / "src"
+if str(SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_ROOT))
+
+from animal_recognition.data import evaluation_transform
+from animal_recognition.models import build_model
 
 REJECT = -1
 
@@ -59,14 +68,42 @@ NUM_CLASSES = len(CLASSES)
 
 
 class Model(nn.Module):
-    """TODO (students): replace this with your own model.
+    """ResNet-18 inference with the internal-validation confidence threshold."""
 
-    Contract: given a PIL image, return a class index in {-1, 0, ..., 19}.
-    The placeholder below is a uniform random guesser so the script runs.
-    """
+    def __init__(self) -> None:
+        super().__init__()
+        checkpoint_text = os.environ.get(
+            "ANIMAL_RECOGNITION_CHECKPOINT",
+            str(PROJECT_ROOT / "checkpoints" / "resnet18_scratch_best.pt"),
+        )
+        checkpoint_path = Path(checkpoint_text)
+        if not checkpoint_path.is_file():
+            raise FileNotFoundError(
+                "ResNet-18 checkpoint was not found. Set ANIMAL_RECOGNITION_CHECKPOINT "
+                f"or place the file at {PROJECT_ROOT / 'checkpoints' / 'resnet18_scratch_best.pt'}."
+            )
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint_config = checkpoint["config"]
+        if checkpoint.get("model_name") != "resnet18":
+            raise ValueError("The final inference harness requires the scratch ResNet-18 checkpoint.")
+        self.classifier = build_model(checkpoint_config["model"]).to(self.device)
+        self.classifier.load_state_dict(checkpoint["model_state_dict"])
+        self.classifier.eval()
+        self.transform = evaluation_transform(int(checkpoint_config["data"]["image_size"]))
+        self.confidence_threshold = 0.30
+
+    @torch.inference_mode()
     def forward(self, image: Image.Image) -> int:
-        return random.randint(-1, NUM_CLASSES - 1)
+        """Return a target-class index or -1 when the image should be rejected."""
+        image_tensor = self.transform(image.convert("RGB")).unsqueeze(0).to(self.device)
+        probabilities = torch.softmax(self.classifier(image_tensor), dim=1)
+        confidence, internal_label = probabilities.max(dim=1)
+        if float(confidence.item()) < self.confidence_threshold:
+            return REJECT
+        label = int(internal_label.item())
+        return REJECT if label == NUM_CLASSES else label
 
 
 if __name__ == "__main__":
