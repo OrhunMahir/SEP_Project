@@ -11,5 +11,9 @@ set -euo pipefail
 cd "$HOME/projects/SEP_Project_code/sep-animal-recognition"
 source .venv/bin/activate
 export PYTHONPATH="$PWD/src"
+config_path="${CONFIG_PATH:-configs/custom_cnn_baseline.json}"
 
-python -u scripts/calibrate_threshold.py --device cuda --num-workers 0
+python -u scripts/calibrate_threshold.py \
+  --config "$config_path" \
+  --device cuda \
+  --num-workers 0
