@@ -110,6 +110,7 @@ def main() -> None:
     (output_dir / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
 
     best_macro_f1 = float("-inf")
+    best_validation_metrics: dict[str, float | int] = {}
     epochs_without_improvement = 0
     history: list[dict] = []
     started_at = time.perf_counter()
@@ -141,10 +142,20 @@ def main() -> None:
             f"Epoch {epoch_index + 1:02d}/{max_epochs} | "
             f"train_loss={train_result['loss']:.4f} | "
             f"val_loss={validation_result['loss']:.4f} | "
-            f"val_macro_f1={macro_f1:.4f} | lr={learning_rate:.6f}"
+            f"accuracy={validation_result['accuracy']:.4f} | "
+            f"lr={learning_rate:.6f}\n"
+            f"  macro(P/R/F1)={validation_result['macro_precision']:.4f}/"
+            f"{validation_result['macro_recall']:.4f}/{macro_f1:.4f} | "
+            f"weighted_f1={validation_result['weighted_f1']:.4f}\n"
+            f"  reject(P/R/F1)={validation_result['reject_precision']:.4f}/"
+            f"{validation_result['reject_recall']:.4f}/"
+            f"{validation_result['reject_f1']:.4f} | "
+            f"false_accepts={validation_result['false_accepts']} | "
+            f"false_rejects={validation_result['false_rejects']}"
         )
         if macro_f1 > best_macro_f1:
             best_macro_f1 = macro_f1
+            best_validation_metrics = dict(validation_result)
             epochs_without_improvement = 0
             torch.save(
                 {
@@ -168,6 +179,7 @@ def main() -> None:
         "device": str(device),
         "trainable_parameters": count_trainable_parameters(model),
         "best_validation_macro_f1": best_macro_f1,
+        "best_validation_metrics": best_validation_metrics,
         "epochs_completed": len(history),
         "elapsed_seconds": time.perf_counter() - started_at,
     }

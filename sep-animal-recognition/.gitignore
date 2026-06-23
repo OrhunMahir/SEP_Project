@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+
+# Large training artifacts stay on local or cluster storage, not in Git.
+*.pt
+runs/*/history.json
+runs/*/summary.json
+runs/*/config.json
+slurm_logs/*.out
+slurm_logs/*.err
+!slurm_logs/.gitkeep
