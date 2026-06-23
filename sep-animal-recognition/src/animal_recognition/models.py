@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import torch
 from torch import nn
+from torchvision.models import efficientnet_b0
 
 from .constants import NUM_OUTPUTS
 
@@ -122,6 +123,25 @@ class ResNet18(nn.Module):
         return self.classifier(self.dropout(pooled))
 
 
+class EfficientNetB0(nn.Module):
+    """EfficientNet-B0 initialized from scratch without pretrained weights."""
+
+    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.2) -> None:
+        super().__init__()
+        if num_outputs != NUM_OUTPUTS:
+            raise ValueError(
+                f"EfficientNetB0 requires {NUM_OUTPUTS} outputs, received {num_outputs}."
+            )
+        if not 0.0 <= dropout < 1.0:
+            raise ValueError("dropout must be in the interval [0.0, 1.0).")
+
+        self.network = efficientnet_b0(weights=None, dropout=dropout)
+        self.network.classifier[1] = nn.Linear(self.network.classifier[1].in_features, num_outputs)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.network(inputs)
+
+
 def build_model(model_config: dict[str, object]) -> nn.Module:
     """Build a supported randomly initialized model from an experiment configuration."""
     model_name = str(model_config["name"])
@@ -131,6 +151,8 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
         return CustomCNN(num_outputs=num_outputs, dropout=dropout)
     if model_name == "resnet18":
         return ResNet18(num_outputs=num_outputs, dropout=dropout)
+    if model_name == "efficientnet_b0":
+        return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
     raise ValueError(f"Unsupported model name: {model_name}")
 
 
