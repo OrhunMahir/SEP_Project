@@ -85,10 +85,32 @@ def evaluate_model(
         labels = labels.to(device, non_blocking=True)
         logits = model(images)
         loss = criterion(logits, labels)
-        total_loss += float(loss.item()) * images.size(0)
+            total_loss += float(loss.item()) * images.size(0)
         total_examples += images.size(0)
         targets.extend(labels.cpu().tolist())
         predictions.extend(logits.argmax(dim=1).cpu().tolist())
     result = classification_metrics(targets, predictions)
     result["loss"] = total_loss / max(total_examples, 1)
     return result
+
+
+
+
+@torch.inference_mode()
+def predict_model(
+    model: nn.Module,
+    loader: Iterable[tuple[torch.Tensor, torch.Tensor, list[str]]],
+    device: torch.device,
+) -> tuple[list[int], list[int], list[str]]:
+    """Collect deterministic model predictions, targets, and relative image paths."""
+    model.eval()
+    targets: list[int] = []
+    predictions: list[int] = []
+    relative_paths: list[str] = []
+    for images, labels, paths in loader:
+        images = images.to(device, non_blocking=True)
+        logits = model(images)
+        targets.extend(labels.cpu().tolist())
+        predictions.extend(logits.argmax(dim=1).cpu().tolist())
+        relative_paths.extend(paths)
+    return targets, predictions, relative_paths
