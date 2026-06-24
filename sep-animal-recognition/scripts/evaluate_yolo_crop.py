@@ -102,11 +102,6 @@ def main() -> None:
     checkpoint_path = args.checkpoint or resolve_project_path(config["output_dir"]) / "best.pt"
     checkpoint = torch.load(checkpoint_path, map_location=classifier_device)
     checkpoint_config = checkpoint["config"]
-    if checkpoint_config["model"]["name"] != "resnet18":
-        raise ValueError("This ablation is restricted to the selected ResNet-18 checkpoint.")
-    if float(checkpoint_config["model"].get("dropout", 0.0)) != 0.0:
-        raise ValueError("This ablation requires the selected ResNet-18 dropout=0.0 checkpoint.")
-
     classifier = build_model(checkpoint_config["model"]).to(classifier_device)
     classifier.load_state_dict(checkpoint["model_state_dict"])
     classifier.eval()
@@ -167,7 +162,7 @@ def main() -> None:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     summary = {
-        "experiment_name": "resnet18_yolo_crop_ablation",
+        "experiment_name": f"{checkpoint_config['experiment_name']}_yolo_crop_ablation",
         "classifier_checkpoint": str(checkpoint_path),
         "classifier_checkpoint_epoch": int(checkpoint["epoch"]),
         "classifier_model": checkpoint_config["model"],
