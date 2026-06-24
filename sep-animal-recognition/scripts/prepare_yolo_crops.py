@@ -11,7 +11,12 @@ from pathlib import Path
 from PIL import Image
 
 from animal_recognition.data import Sample, load_split
-from animal_recognition.yolo_crop import Detection, clamp_crop_box, select_largest_target_animal
+from animal_recognition.yolo_crop import (
+    Detection,
+    clamp_crop_box,
+    padded_square_crop_box,
+    select_largest_target_animal,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -65,7 +70,13 @@ def destination_for(sample: Sample, output_root: Path) -> Path:
     return output_root / sample.relative_path
 
 
-def save_crop_or_fallback(sample: Sample, detection: Detection | None, output_path: Path) -> bool:
+def save_crop_or_fallback(
+    sample: Sample,
+    detection: Detection | None,
+    output_path: Path,
+    padding_fraction: float,
+    square_crop: bool,
+) -> bool:
     """Save a largest-animal crop or copy the source image when no crop is valid."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if detection is None:
@@ -74,7 +85,16 @@ def save_crop_or_fallback(sample: Sample, detection: Detection | None, output_pa
 
     with Image.open(sample.path) as opened_image:
         image = opened_image.convert("RGB")
-        crop_box = clamp_crop_box(detection, image.width, image.height)
+        crop_box = (
+            padded_square_crop_box(
+                detection,
+                image.width,
+                image.height,
+                padding_fraction,
+            )
+            if square_crop
+            else clamp_crop_box(detection, image.width, image.height)
+        )
         if crop_box is None:
             shutil.copy2(sample.path, output_path)
             return False
@@ -97,6 +117,8 @@ def main() -> None:
     parser.add_argument("--detector-device", default="0")
     parser.add_argument("--confidence", type=float, default=0.25)
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--padding-fraction", type=float, default=0.0)
+    parser.add_argument("--square-crop", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
@@ -104,6 +126,8 @@ def main() -> None:
         raise ValueError("confidence must be in the interval [0.0, 1.0].")
     if args.batch_size < 1:
         raise ValueError("batch-size must be positive.")
+    if args.padding_fraction < 0.0:
+        raise ValueError("padding-fraction must be non-negative.")
 
     try:
         from ultralytics import YOLO
@@ -153,7 +177,13 @@ def main() -> None:
             raise RuntimeError("YOLO returned an unexpected number of detection results.")
         for sample, result in zip(sample_batch, results):
             detection = select_largest_target_animal(detections_from_result(result))
-            used_crop = save_crop_or_fallback(sample, detection, destination_for(sample, output_root))
+            used_crop = save_crop_or_fallback(
+                sample,
+                detection,
+                destination_for(sample, output_root),
+                args.padding_fraction,
+                args.square_crop,
+            )
             crop_count += int(used_crop)
             fallback_count += int(not used_crop)
 
@@ -161,6 +191,8 @@ def main() -> None:
         "experiment_name": config["experiment_name"],
         "detector": args.detector,
         "detector_confidence": args.confidence,
+        "padding_fraction": args.padding_fraction,
+        "square_crop": args.square_crop,
         "source_image_root": str(source_root),
         "output_image_root": str(output_root),
         "train_samples": len(train_samples),
