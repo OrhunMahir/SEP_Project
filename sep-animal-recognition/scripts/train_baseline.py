@@ -68,7 +68,9 @@ def main() -> None:
     training_config = config["training"]
     max_epochs = args.max_epochs or int(training_config["max_epochs"])
     num_workers = args.num_workers if args.num_workers is not None else int(data_config["num_workers"])
-    image_root = Path(data_paths["train_image_root"])
+    image_root = resolve_project_path(str(data_config.get("image_root", data_paths["train_image_root"])))
+    if not image_root.is_dir():
+        raise FileNotFoundError(f"Configured image root was not found: {image_root}")
     train_samples = load_split(resolve_project_path(data_config["train_split"]), image_root)
     validation_samples = load_split(resolve_project_path(data_config["validation_split"]), image_root)
 

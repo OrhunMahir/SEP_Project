@@ -122,9 +122,14 @@ def main() -> None:
     model.load_state_dict(checkpoint["model_state_dict"])
 
     data_config = checkpoint_config["data"]
+    image_root = resolve_project_path(
+        str(data_config.get("image_root", data_paths["train_image_root"]))
+    )
+    if not image_root.is_dir():
+        raise FileNotFoundError(f"Configured image root was not found: {image_root}")
     validation_samples = load_split(
         resolve_project_path(data_config["validation_split"]),
-        Path(data_paths["train_image_root"]),
+        image_root,
     )
     validation_loader = DataLoader(
         ManifestDataset(validation_samples, evaluation_transform(int(data_config["image_size"]))),
