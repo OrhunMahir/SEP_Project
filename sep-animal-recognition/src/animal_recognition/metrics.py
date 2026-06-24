@@ -6,7 +6,7 @@ from typing import Sequence
 
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-from .constants import NUM_OUTPUTS, REJECT_INTERNAL
+from .constants import CLASSES, NUM_OUTPUTS, REJECT_EXTERNAL, REJECT_INTERNAL
 
 
 def classification_metrics(targets: Sequence[int], predictions: Sequence[int]) -> dict[str, float | int]:
@@ -43,3 +43,26 @@ def classification_metrics(targets: Sequence[int], predictions: Sequence[int]) -
         "false_accepts": int(false_accepts),
         "false_rejects": int(false_rejects),
     }
+
+
+def per_class_metrics(targets: Sequence[int], predictions: Sequence[int]) -> list[dict[str, float | int | str]]:
+    """Compute precision, recall, F1, and support for each output class."""
+    labels = list(range(NUM_OUTPUTS))
+    precision, recall, f1, support = precision_recall_fscore_support(
+        targets, predictions, labels=labels, average=None, zero_division=0
+    )
+
+    records: list[dict[str, float | int | str]] = []
+    for label in labels:
+        external_label = REJECT_EXTERNAL if label == REJECT_INTERNAL else label
+        class_name = "reject" if label == REJECT_INTERNAL else CLASSES[label]
+        records.append({
+            "internal_label": label,
+            "external_label": external_label,
+            "class_name": class_name,
+            "precision": float(precision[label]),
+            "recall": float(recall[label]),
+            "f1": float(f1[label]),
+            "support": int(support[label]),
+        })
+    return records

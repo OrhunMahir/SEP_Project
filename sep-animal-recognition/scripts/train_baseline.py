@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 import time
@@ -19,9 +20,11 @@ from animal_recognition.data import (
     load_split,
     training_transform,
 )
+from animal_recognition.metrics import per_class_metrics
 from animal_recognition.models import build_model, count_trainable_parameters
 from animal_recognition.training import (
     evaluate_model,
+    predict_model,
     set_seed,
     set_warmup_cosine_learning_rate,
     train_one_epoch,
@@ -39,6 +42,16 @@ def resolve_project_path(path_text: str) -> Path:
     """Resolve project-relative paths while keeping absolute paths unchanged."""
     path = Path(path_text)
     return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def write_records_csv(path: Path, records: list[dict[str, float | int | str]]) -> None:
+    """Write metric records as a spreadsheet-friendly CSV file."""
+    if not records:
+        return
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(records[0]))
+        writer.writeheader()
+        writer.writerows(records)
 
 
 def main() -> None:
@@ -68,9 +81,11 @@ def main() -> None:
     training_config = config["training"]
     max_epochs = args.max_epochs or int(training_config["max_epochs"])
     num_workers = args.num_workers if args.num_workers is not None else int(data_config["num_workers"])
+
     image_root = resolve_project_path(str(data_config.get("image_root", data_paths["train_image_root"])))
     if not image_root.is_dir():
         raise FileNotFoundError(f"Configured image root was not found: {image_root}")
+
     train_samples = load_split(resolve_project_path(data_config["train_split"]), image_root)
     validation_samples = load_split(resolve_project_path(data_config["validation_split"]), image_root)
 
@@ -127,6 +142,7 @@ def main() -> None:
         )
         train_result = train_one_epoch(model, train_loader, optimizer, criterion, device)
         validation_result = evaluate_model(model, validation_loader, criterion, device)
+
         record = {
             "epoch": epoch_index + 1,
             "learning_rate": learning_rate,
@@ -152,6 +168,7 @@ def main() -> None:
             f"false_accepts={validation_result['false_accepts']} | "
             f"false_rejects={validation_result['false_rejects']}"
         )
+
         if macro_f1 > best_macro_f1:
             best_macro_f1 = macro_f1
             best_validation_metrics = dict(validation_result)
@@ -173,12 +190,31 @@ def main() -> None:
             print("Early stopping: macro-F1 did not improve within the configured patience.")
             break
 
+    best_checkpoint_path = output_dir / "best.pt"
+    best_validation_per_class_metrics: list[dict[str, float | int | str]] = []
+    if best_checkpoint_path.is_file():
+        best_checkpoint = torch.load(best_checkpoint_path, map_location=device)
+        model.load_state_dict(best_checkpoint["model_state_dict"])
+        targets, predictions, _ = predict_model(model, validation_loader, device)
+        best_validation_per_class_metrics = per_class_metrics(targets, predictions)
+
+        (output_dir / "validation_per_class_metrics.json").write_text(
+            json.dumps(best_validation_per_class_metrics, indent=2),
+            encoding="utf-8",
+        )
+        write_records_csv(
+            output_dir / "validation_per_class_metrics.csv",
+            best_validation_per_class_metrics,
+        )
+        print(f"Saved per-class validation metrics to: {output_dir}")
+
     summary = {
         "experiment_name": config["experiment_name"],
         "device": str(device),
         "trainable_parameters": count_trainable_parameters(model),
         "best_validation_macro_f1": best_macro_f1,
         "best_validation_metrics": best_validation_metrics,
+        "best_validation_per_class_metrics": best_validation_per_class_metrics,
         "epochs_completed": len(history),
         "elapsed_seconds": time.perf_counter() - started_at,
     }
