@@ -6,7 +6,8 @@
     "num_outputs": 21,
     "dropout": 0.3
   },
-  "data": {
+   "data": {
+    "image_root": "../dataset/all",
     "image_size": 224,
     "batch_size": 32,
     "num_workers": 4,
