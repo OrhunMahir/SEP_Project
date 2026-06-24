@@ -124,7 +124,7 @@ def main() -> None:
     data_config = checkpoint_config["data"]
     validation_samples = load_split(
         resolve_project_path(data_config["validation_split"]),
-        Path(data_paths["train_image_root"]),
+        resolve_project_path(data_paths["train_image_root"]),
     )
     validation_loader = DataLoader(
         ManifestDataset(validation_samples, evaluation_transform(int(data_config["image_size"]))),

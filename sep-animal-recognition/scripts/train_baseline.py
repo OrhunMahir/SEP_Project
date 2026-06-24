@@ -67,8 +67,11 @@ def main() -> None:
     data_config = config["data"]
     training_config = config["training"]
     max_epochs = args.max_epochs or int(training_config["max_epochs"])
+    selection_metric = str(training_config.get("selection_metric", "macro_f1"))
+    if selection_metric not in {"accuracy", "macro_f1"}:
+        raise ValueError("selection_metric must be either 'accuracy' or 'macro_f1'.")
     num_workers = args.num_workers if args.num_workers is not None else int(data_config["num_workers"])
-    image_root = Path(data_paths["train_image_root"])
+    image_root = resolve_project_path(data_paths["train_image_root"])
     train_samples = load_split(resolve_project_path(data_config["train_split"]), image_root)
     validation_samples = load_split(resolve_project_path(data_config["validation_split"]), image_root)
 
@@ -106,7 +109,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
 
-    best_macro_f1 = float("-inf")
+    best_selection_score = float("-inf")
     best_validation_metrics: dict[str, float | int] = {}
     epochs_without_improvement = 0
     history: list[dict] = []
@@ -135,6 +138,7 @@ def main() -> None:
         (output_dir / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
 
         macro_f1 = float(validation_result["macro_f1"])
+        selection_score = float(validation_result[selection_metric])
         print(
             f"Epoch {epoch_index + 1:02d}/{max_epochs} | "
             f"train_loss={train_result['loss']:.4f} | "
@@ -150,8 +154,8 @@ def main() -> None:
             f"false_accepts={validation_result['false_accepts']} | "
             f"false_rejects={validation_result['false_rejects']}"
         )
-        if macro_f1 > best_macro_f1:
-            best_macro_f1 = macro_f1
+        if selection_score > best_selection_score:
+            best_selection_score = selection_score
             best_validation_metrics = dict(validation_result)
             epochs_without_improvement = 0
             torch.save(
@@ -168,15 +172,19 @@ def main() -> None:
             epochs_without_improvement += 1
 
         if epochs_without_improvement >= int(training_config["early_stopping_patience"]):
-            print("Early stopping: macro-F1 did not improve within the configured patience.")
+            print(
+                f"Early stopping: {selection_metric} did not improve within "
+                "the configured patience."
+            )
             break
 
     summary = {
         "experiment_name": config["experiment_name"],
         "device": str(device),
         "trainable_parameters": count_trainable_parameters(model),
-        "best_validation_macro_f1": best_macro_f1,
-        "best_validation_metrics": best_validation_metrics,
+        "selection_metric": selection_metric,
+        "best_selection_score": best_selection_score,
+        "selected_checkpoint_metrics": best_validation_metrics,
         "epochs_completed": len(history),
         "elapsed_seconds": time.perf_counter() - started_at,
     }

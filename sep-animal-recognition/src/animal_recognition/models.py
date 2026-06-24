@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torchvision.models import efficientnet_b0
+from torchvision.models import EfficientNet_B0_Weights, efficientnet_b0
 
 from .constants import NUM_OUTPUTS
 
@@ -124,9 +124,14 @@ class ResNet18(nn.Module):
 
 
 class EfficientNetB0(nn.Module):
-    """EfficientNet-B0 initialized from scratch without pretrained weights."""
+    """EfficientNet-B0 for scratch training or ImageNet fine-tuning."""
 
-    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.2) -> None:
+    def __init__(
+        self,
+        num_outputs: int = NUM_OUTPUTS,
+        dropout: float = 0.2,
+        pretrained: bool = False,
+    ) -> None:
         super().__init__()
         if num_outputs != NUM_OUTPUTS:
             raise ValueError(
@@ -135,7 +140,8 @@ class EfficientNetB0(nn.Module):
         if not 0.0 <= dropout < 1.0:
             raise ValueError("dropout must be in the interval [0.0, 1.0).")
 
-        self.network = efficientnet_b0(weights=None, dropout=dropout)
+        weights = EfficientNet_B0_Weights.DEFAULT if pretrained else None
+        self.network = efficientnet_b0(weights=weights, dropout=dropout)
         self.network.classifier[1] = nn.Linear(self.network.classifier[1].in_features, num_outputs)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
@@ -147,12 +153,17 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
     model_name = str(model_config["name"])
     num_outputs = int(model_config["num_outputs"])
     dropout = float(model_config.get("dropout", 0.0))
+    pretrained = bool(model_config.get("pretrained", False))
     if model_name == "custom_cnn":
         return CustomCNN(num_outputs=num_outputs, dropout=dropout)
     if model_name == "resnet18":
         return ResNet18(num_outputs=num_outputs, dropout=dropout)
     if model_name == "efficientnet_b0":
-        return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
+        return EfficientNetB0(
+            num_outputs=num_outputs,
+            dropout=dropout,
+            pretrained=pretrained,
+        )
     raise ValueError(f"Unsupported model name: {model_name}")
 
 
