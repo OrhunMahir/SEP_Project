@@ -1,0 +1,26 @@
+{
+  "experiment_name": "custom_cnn_lr_0005",
+  "seed": 42,
+  "model": {
+    "name": "custom_cnn",
+    "num_outputs": 21,
+    "dropout": 0.3
+  },
+  "data": {
+    "image_root": "../dataset/all",
+    "image_size": 224,
+    "batch_size": 32,
+    "num_workers": 4,
+    "train_split": "splits/train_seed42.csv",
+    "validation_split": "splits/val_seed42.csv"
+  },
+  "training": {
+    "max_epochs": 25,
+    "warmup_epochs": 3,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.0001,
+    "label_smoothing": 0.1,
+    "early_stopping_patience": 25
+  },
+  "output_dir": "runs/custom_cnn_lr_0005"
+}
