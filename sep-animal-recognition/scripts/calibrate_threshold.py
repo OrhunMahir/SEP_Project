@@ -118,7 +118,10 @@ def main() -> None:
     if checkpoint.get("model_name") != checkpoint_config["model"]["name"]:
         raise ValueError("Checkpoint model name does not match its saved configuration.")
 
-    model = build_model(checkpoint_config["model"]).to(device)
+    model_config = dict(checkpoint_config["model"])
+    if bool(model_config.get("pretrained", False)):
+        model_config["weights"] = None
+    model = build_model(model_config).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
 
     data_config = checkpoint_config["data"]

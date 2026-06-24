@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train a scratch model and select the best checkpoint by validation macro-F1."""
+"""Train a configured model and select the best checkpoint by validation macro-F1."""
 
 from __future__ import annotations
 

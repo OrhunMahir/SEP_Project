@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torchvision.models import efficientnet_b0, swin_t
+from torchvision.models import (
+    ResNet18_Weights,
+    efficientnet_b0,
+    resnet18 as torchvision_resnet18,
+    swin_t,
+)
 
 from .constants import NUM_OUTPUTS
 
@@ -123,6 +128,46 @@ class ResNet18(nn.Module):
         return self.classifier(self.dropout(pooled))
 
 
+def _resolve_resnet18_weights(weights_name: object) -> ResNet18_Weights | None:
+    """Resolve a config value into torchvision ResNet-18 weights."""
+    if weights_name in (None, "none", "None"):
+        return None
+    if str(weights_name) == "DEFAULT":
+        return ResNet18_Weights.DEFAULT
+    return ResNet18_Weights[str(weights_name)]
+
+
+class TorchvisionResNet18(nn.Module):
+    """Torchvision ResNet-18 with optional ImageNet weights and a 21-output head."""
+
+    def __init__(
+        self,
+        num_outputs: int = NUM_OUTPUTS,
+        dropout: float = 0.0,
+        weights_name: object = "IMAGENET1K_V1",
+    ) -> None:
+        super().__init__()
+        if num_outputs != NUM_OUTPUTS:
+            raise ValueError(
+                f"TorchvisionResNet18 requires {NUM_OUTPUTS} outputs, received {num_outputs}."
+            )
+        if not 0.0 <= dropout < 1.0:
+            raise ValueError("dropout must be in the interval [0.0, 1.0).")
+
+        self.network = torchvision_resnet18(weights=_resolve_resnet18_weights(weights_name))
+        in_features = self.network.fc.in_features
+        if dropout == 0.0:
+            self.network.fc = nn.Linear(in_features, num_outputs)
+        else:
+            self.network.fc = nn.Sequential(
+                nn.Dropout(dropout),
+                nn.Linear(in_features, num_outputs),
+            )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.network(inputs)
+
+
 class EfficientNetB0(nn.Module):
     """EfficientNet-B0 initialized from scratch without pretrained weights."""
 
@@ -170,13 +215,23 @@ class SwinTiny(nn.Module):
 
 
 def build_model(model_config: dict[str, object]) -> nn.Module:
-    """Build a supported randomly initialized model from an experiment configuration."""
+    """Build a supported model from an experiment configuration."""
     model_name = str(model_config["name"])
     num_outputs = int(model_config["num_outputs"])
     dropout = float(model_config.get("dropout", 0.0))
     if model_name == "custom_cnn":
         return CustomCNN(num_outputs=num_outputs, dropout=dropout)
     if model_name == "resnet18":
+        if (
+            bool(model_config.get("pretrained", False))
+            or model_config.get("implementation") == "torchvision"
+        ):
+            weights_name = model_config.get("weights", "IMAGENET1K_V1")
+            return TorchvisionResNet18(
+                num_outputs=num_outputs,
+                dropout=dropout,
+                weights_name=weights_name,
+            )
         return ResNet18(num_outputs=num_outputs, dropout=dropout)
     if model_name == "efficientnet_b0":
         return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
