@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torchvision.models import efficientnet_b0
+from torchvision.models import efficientnet_b0, swin_t
 
 from .constants import NUM_OUTPUTS
 
@@ -142,6 +142,33 @@ class EfficientNetB0(nn.Module):
         return self.network(inputs)
 
 
+class SwinTiny(nn.Module):
+    """Swin-Tiny initialized from scratch without pretrained weights."""
+
+    def __init__(
+        self,
+        num_outputs: int = NUM_OUTPUTS,
+        dropout: float = 0.1,
+        attention_dropout: float = 0.0,
+    ) -> None:
+        super().__init__()
+        if num_outputs != NUM_OUTPUTS:
+            raise ValueError(f"SwinTiny requires {NUM_OUTPUTS} outputs, received {num_outputs}.")
+        if not 0.0 <= dropout < 1.0:
+            raise ValueError("dropout must be in the interval [0.0, 1.0).")
+        if not 0.0 <= attention_dropout < 1.0:
+            raise ValueError("attention_dropout must be in the interval [0.0, 1.0).")
+        self.network = swin_t(
+            weights=None,
+            dropout=dropout,
+            attention_dropout=attention_dropout,
+        )
+        self.network.head = nn.Linear(self.network.head.in_features, num_outputs)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.network(inputs)
+
+
 def build_model(model_config: dict[str, object]) -> nn.Module:
     """Build a supported randomly initialized model from an experiment configuration."""
     model_name = str(model_config["name"])
@@ -153,6 +180,12 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
         return ResNet18(num_outputs=num_outputs, dropout=dropout)
     if model_name == "efficientnet_b0":
         return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
+    if model_name == "swin_tiny":
+        return SwinTiny(
+            num_outputs=num_outputs,
+            dropout=dropout,
+            attention_dropout=float(model_config.get("attention_dropout", 0.0)),
+        )
     raise ValueError(f"Unsupported model name: {model_name}")
 
 
