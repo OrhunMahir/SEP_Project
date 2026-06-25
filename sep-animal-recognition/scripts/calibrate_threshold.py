@@ -62,8 +62,20 @@ def collect_validation_probabilities(
     return torch.cat(probability_batches), torch.cat(target_batches)
 
 
-def ranking_key(record: dict[str, float | int]) -> tuple[float, float, float, int, int, float]:
-    """Rank threshold candidates by macro-F1, then reject safety and accuracy."""
+def ranking_key(
+    record: dict[str, float | int],
+    selection_metric: str,
+) -> tuple[float, float, float, int, int, float]:
+    """Rank threshold candidates by the requested metric with stable tie-breakers."""
+    if selection_metric == "accuracy":
+        return (
+            -float(record["accuracy"]),
+            -float(record["macro_f1"]),
+            -float(record["reject_f1"]),
+            int(record["false_accepts"]),
+            int(record["false_rejects"]),
+            float(record["threshold"]),
+        )
     return (
         -float(record["macro_f1"]),
         -float(record["reject_f1"]),
@@ -72,6 +84,13 @@ def ranking_key(record: dict[str, float | int]) -> tuple[float, float, float, in
         int(record["false_rejects"]),
         float(record["threshold"]),
     )
+
+
+def selection_rule_text(selection_metric: str) -> str:
+    """Describe the threshold ranking rule stored in the calibration summary."""
+    if selection_metric == "accuracy":
+        return "accuracy, then macro_f1, reject_f1, false_accepts, false_rejects"
+    return "macro_f1, then reject_f1, accuracy, false_accepts, false_rejects"
 
 
 def write_csv(path: Path, records: list[dict[str, float | int]]) -> None:
@@ -96,6 +115,12 @@ def main() -> None:
     parser.add_argument("--threshold-start", type=float, default=0.0)
     parser.add_argument("--threshold-end", type=float, default=0.95)
     parser.add_argument("--threshold-step", type=float, default=0.01)
+    parser.add_argument(
+        "--selection-metric",
+        default="macro_f1",
+        choices=["macro_f1", "accuracy"],
+        help="Metric used to choose the best threshold from the sweep.",
+    )
     parser.add_argument("--output-dir", type=Path, default=None)
     args = parser.parse_args()
 
@@ -148,9 +173,14 @@ def main() -> None:
         record.update(classification_metrics(target_list, predictions.tolist()))
         records.append(record)
 
-    best_record = min(records, key=ranking_key)
+    best_record = min(records, key=lambda record: ranking_key(record, args.selection_metric))
     baseline_record = records[0]
-    calibration_dir = args.output_dir or output_dir / "threshold_calibration"
+    default_calibration_name = (
+        "threshold_calibration"
+        if args.selection_metric == "macro_f1"
+        else f"threshold_calibration_{args.selection_metric}"
+    )
+    calibration_dir = args.output_dir or output_dir / default_calibration_name
     calibration_dir.mkdir(parents=True, exist_ok=True)
     write_csv(calibration_dir / "threshold_sweep.csv", records)
     result = {
@@ -158,7 +188,8 @@ def main() -> None:
         "checkpoint_epoch": int(checkpoint["epoch"]),
         "device": str(device),
         "validation_samples": len(target_list),
-        "selection_rule": "macro_f1, then reject_f1, accuracy, false_accepts, false_rejects",
+        "selection_metric": args.selection_metric,
+        "selection_rule": selection_rule_text(args.selection_metric),
         "baseline_without_threshold": baseline_record,
         "best_threshold": best_record,
         "candidates": records,
@@ -169,6 +200,7 @@ def main() -> None:
 
     print(f"Device: {device}")
     print(f"Checkpoint epoch: {checkpoint['epoch']}")
+    print(f"Selection metric: {args.selection_metric}")
     print(f"Baseline macro-F1: {float(baseline_record['macro_f1']):.4f}")
     print(
         "Best threshold: "

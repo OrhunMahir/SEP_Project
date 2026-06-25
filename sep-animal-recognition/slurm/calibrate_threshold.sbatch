@@ -12,8 +12,10 @@ cd "$HOME/projects/SEP_Project_code/sep-animal-recognition"
 source .venv/bin/activate
 export PYTHONPATH="$PWD/src"
 config_path="${CONFIG_PATH:-configs/custom_cnn_baseline.json}"
+selection_metric="${SELECTION_METRIC:-macro_f1}"
 
 python -u scripts/calibrate_threshold.py \
   --config "$config_path" \
+  --selection-metric "$selection_metric" \
   --device cuda \
   --num-workers 0
