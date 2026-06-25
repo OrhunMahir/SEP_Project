@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torchvision.models import efficientnet_b0, resnet50, swin_t
+from torchvision.models import ResNet18_Weights, efficientnet_b0, resnet18, resnet50, swin_t
 
 from .constants import NUM_OUTPUTS
 
@@ -190,19 +190,35 @@ class SwinTiny(nn.Module):
 
 
 def build_model(model_config: dict[str, object]) -> nn.Module:
-    """Build a supported randomly initialized model from an experiment configuration."""
+    """Build a supported model from an experiment configuration."""
     model_name = str(model_config["name"])
     num_outputs = int(model_config["num_outputs"])
     dropout = float(model_config.get("dropout", 0.0))
+    pretrained = bool(model_config.get("pretrained", False))
     if model_name == "custom_cnn":
+        if pretrained:
+            raise ValueError("CustomCNN does not support pretrained initialization.")
         return CustomCNN(num_outputs=num_outputs, dropout=dropout)
     if model_name == "resnet18":
+        if pretrained:
+            model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+            classifier: nn.Module = nn.Linear(model.fc.in_features, num_outputs)
+            if dropout > 0.0:
+                classifier = nn.Sequential(nn.Dropout(dropout), classifier)
+            model.fc = classifier
+            return model
         return ResNet18(num_outputs=num_outputs, dropout=dropout)
     if model_name == "resnet50":
+        if pretrained:
+            raise ValueError("ResNet50 pretrained initialization is not configured.")
         return ResNet50(num_outputs=num_outputs, dropout=dropout)
     if model_name == "efficientnet_b0":
+        if pretrained:
+            raise ValueError("EfficientNet-B0 pretrained initialization is not configured.")
         return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
     if model_name == "swin_tiny":
+        if pretrained:
+            raise ValueError("Swin-Tiny pretrained initialization is not configured.")
         return SwinTiny(
             num_outputs=num_outputs,
             dropout=dropout,
