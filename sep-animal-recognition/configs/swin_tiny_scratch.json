@@ -18,9 +18,9 @@
     "max_epochs": 50,
     "warmup_epochs": 5,
     "learning_rate": 0.0005,
-    "weight_decay": 0.0001,
+    "weight_decay": 0.01,
     "label_smoothing": 0.1,
-    "early_stopping_patience": 10
+    "early_stopping_patience": 50
   },
   "output_dir": "runs/swin_tiny_scratch"
 }

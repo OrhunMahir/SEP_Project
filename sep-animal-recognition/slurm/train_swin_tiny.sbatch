@@ -8,9 +8,12 @@
 
 set -euo pipefail
 
-cd "$HOME/projects/SEP_Project_code/sep-animal-recognition"
+PROJECT_DIR="$HOME/SEP_Project/sep-animal-recognition"
+mkdir -p "$HOME/tmp"
+export TMPDIR="$HOME/tmp"
+cd "$PROJECT_DIR"
 source .venv/bin/activate
-export PYTHONPATH="$PWD/src"
+export PYTHONPATH="$PROJECT_DIR/src"
 
 nvidia-smi
 python scripts/train_baseline.py \

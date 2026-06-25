@@ -28,6 +28,7 @@ from animal_recognition.training import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+WORKSPACE_ROOT = PROJECT_ROOT.parent
 
 
 def read_json(path: Path) -> dict:
@@ -39,6 +40,17 @@ def resolve_project_path(path_text: str) -> Path:
     """Resolve project-relative paths while keeping absolute paths unchanged."""
     path = Path(path_text)
     return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def resolve_data_path(path_text: str) -> Path:
+    """Resolve data paths relative to this repo, then the surrounding workspace."""
+    path = Path(path_text)
+    if path.is_absolute():
+        return path
+    project_path = PROJECT_ROOT / path
+    if project_path.exists():
+        return project_path
+    return WORKSPACE_ROOT / path
 
 
 def main() -> None:
@@ -68,7 +80,7 @@ def main() -> None:
     training_config = config["training"]
     max_epochs = args.max_epochs or int(training_config["max_epochs"])
     num_workers = args.num_workers if args.num_workers is not None else int(data_config["num_workers"])
-    image_root = Path(data_paths["train_image_root"])
+    image_root = resolve_data_path(data_paths["train_image_root"])
     train_samples = load_split(resolve_project_path(data_config["train_split"]), image_root)
     validation_samples = load_split(resolve_project_path(data_config["validation_split"]), image_root)
 

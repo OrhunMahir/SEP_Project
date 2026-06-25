@@ -17,6 +17,7 @@ from animal_recognition.models import build_model
 from animal_recognition.thresholding import apply_confidence_threshold
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+WORKSPACE_ROOT = PROJECT_ROOT.parent
 
 
 def read_json(path: Path) -> dict:
@@ -28,6 +29,17 @@ def resolve_project_path(path_text: str) -> Path:
     """Resolve project-relative paths while keeping absolute paths unchanged."""
     path = Path(path_text)
     return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def resolve_data_path(path_text: str) -> Path:
+    """Resolve data paths relative to this repo, then the surrounding workspace."""
+    path = Path(path_text)
+    if path.is_absolute():
+        return path
+    project_path = PROJECT_ROOT / path
+    if project_path.exists():
+        return project_path
+    return WORKSPACE_ROOT / path
 
 
 def threshold_values(start: float, end: float, step: float) -> list[float]:
@@ -127,7 +139,7 @@ def main() -> None:
     data_config = checkpoint_config["data"]
     validation_samples = load_split(
         resolve_project_path(data_config["validation_split"]),
-        Path(data_paths["train_image_root"]),
+        resolve_data_path(data_paths["train_image_root"]),
     )
     validation_loader = DataLoader(
         ManifestDataset(validation_samples, evaluation_transform(int(data_config["image_size"]))),

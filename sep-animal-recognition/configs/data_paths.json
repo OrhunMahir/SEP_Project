@@ -1,6 +1,6 @@
 {
-  "train_manifest": "/Users/orhun/Desktop/Lmu dersler/2026 SS/Deep Learning/codex/AnimalRecognitionChallenge codex/dataset/labels.csv",
-  "train_image_root": "/Users/orhun/Desktop/Lmu dersler/2026 SS/Deep Learning/codex/AnimalRecognitionChallenge codex/dataset/all",
-  "official_validation_root": "/Users/orhun/Desktop/Lmu dersler/2026 SS/Deep Learning/SEP Proje /AnimalRecognitionChallenge/images",
-  "note": "These paths are valid only on the local Mac. Replace their values with cluster paths when running on CIP/Slurm."
+  "train_manifest": "dataset/labels.csv",
+  "train_image_root": "dataset/all",
+  "official_validation_root": "AnimalRecognitionChallenge/images",
+  "note": "Relative paths are resolved against sep-animal-recognition first, then the workspace root."
 }
