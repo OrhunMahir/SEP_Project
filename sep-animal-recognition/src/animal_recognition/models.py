@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torchvision.models import (
     ResNet18_Weights,
+    Swin_T_Weights,
     efficientnet_b0,
     resnet18 as torchvision_resnet18,
     swin_t,
@@ -188,13 +189,14 @@ class EfficientNetB0(nn.Module):
 
 
 class SwinTiny(nn.Module):
-    """Swin-Tiny initialized from scratch without pretrained weights."""
+    """Swin-Tiny with optional pretrained weights and a 21-output head."""
 
     def __init__(
         self,
         num_outputs: int = NUM_OUTPUTS,
         dropout: float = 0.1,
         attention_dropout: float = 0.0,
+        weights_name: object = None,
     ) -> None:
         super().__init__()
         if num_outputs != NUM_OUTPUTS:
@@ -204,7 +206,7 @@ class SwinTiny(nn.Module):
         if not 0.0 <= attention_dropout < 1.0:
             raise ValueError("attention_dropout must be in the interval [0.0, 1.0).")
         self.network = swin_t(
-            weights=None,
+            weights=_resolve_swin_t_weights(weights_name),
             dropout=dropout,
             attention_dropout=attention_dropout,
         )
@@ -212,6 +214,15 @@ class SwinTiny(nn.Module):
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.network(inputs)
+
+
+def _resolve_swin_t_weights(weights_name: object) -> Swin_T_Weights | None:
+    """Resolve a config value into torchvision Swin-T weights."""
+    if weights_name in (None, "none", "None"):
+        return None
+    if str(weights_name) == "DEFAULT":
+        return Swin_T_Weights.DEFAULT
+    return Swin_T_Weights[str(weights_name)]
 
 
 def build_model(model_config: dict[str, object]) -> nn.Module:
@@ -236,10 +247,14 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
     if model_name == "efficientnet_b0":
         return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
     if model_name == "swin_tiny":
+        weights_name = None
+        if bool(model_config.get("pretrained", False)):
+            weights_name = model_config.get("weights", "IMAGENET1K_V1")
         return SwinTiny(
             num_outputs=num_outputs,
             dropout=dropout,
             attention_dropout=float(model_config.get("attention_dropout", 0.0)),
+            weights_name=weights_name,
         )
     raise ValueError(f"Unsupported model name: {model_name}")
 
