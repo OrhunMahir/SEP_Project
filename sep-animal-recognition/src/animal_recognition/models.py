@@ -88,13 +88,19 @@ class ResidualBlock(nn.Module):
         return self.activation(features + residual)
 
 
-class ResNet18(nn.Module):
-    """Standard ResNet-18 trained from random initialization for 21 outputs."""
+class ScratchResNet(nn.Module):
+    """Configurable ResNet with basic residual blocks trained from random initialization."""
 
-    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.0) -> None:
+    def __init__(
+        self,
+        layers: tuple[int, int, int, int],
+        num_outputs: int = NUM_OUTPUTS,
+        dropout: float = 0.0,
+        model_label: str = "ScratchResNet",
+    ) -> None:
         super().__init__()
         if num_outputs != NUM_OUTPUTS:
-            raise ValueError(f"ResNet18 requires {NUM_OUTPUTS} outputs, received {num_outputs}.")
+            raise ValueError(f"{model_label} requires {NUM_OUTPUTS} outputs, received {num_outputs}.")
         if not 0.0 <= dropout < 1.0:
             raise ValueError("dropout must be in the interval [0.0, 1.0).")
 
@@ -105,10 +111,10 @@ class ResNet18(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         )
         self.in_channels = 64
-        self.layer_1 = self._make_layer(64, blocks=2, stride=1)
-        self.layer_2 = self._make_layer(128, blocks=2, stride=2)
-        self.layer_3 = self._make_layer(256, blocks=2, stride=2)
-        self.layer_4 = self._make_layer(512, blocks=2, stride=2)
+        self.layer_1 = self._make_layer(64, blocks=layers[0], stride=1)
+        self.layer_2 = self._make_layer(128, blocks=layers[1], stride=2)
+        self.layer_3 = self._make_layer(256, blocks=layers[2], stride=2)
+        self.layer_4 = self._make_layer(512, blocks=layers[3], stride=2)
         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(512, num_outputs)
@@ -127,6 +133,30 @@ class ResNet18(nn.Module):
         features = self.layer_4(features)
         pooled = self.global_pool(features).flatten(start_dim=1)
         return self.classifier(self.dropout(pooled))
+
+
+class ResNet18(ScratchResNet):
+    """Standard ResNet-18 trained from random initialization for 21 outputs."""
+
+    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.0) -> None:
+        super().__init__(
+            layers=(2, 2, 2, 2),
+            num_outputs=num_outputs,
+            dropout=dropout,
+            model_label="ResNet18",
+        )
+
+
+class ResNet34(ScratchResNet):
+    """Standard ResNet-34 trained from random initialization for 21 outputs."""
+
+    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.0) -> None:
+        super().__init__(
+            layers=(3, 4, 6, 3),
+            num_outputs=num_outputs,
+            dropout=dropout,
+            model_label="ResNet34",
+        )
 
 
 def _resolve_resnet18_weights(weights_name: object) -> ResNet18_Weights | None:
@@ -244,6 +274,10 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
                 weights_name=weights_name,
             )
         return ResNet18(num_outputs=num_outputs, dropout=dropout)
+    if model_name == "resnet34":
+        if bool(model_config.get("pretrained", False)):
+            raise ValueError("Pretrained ResNet-34 is not configured for this scratch experiment.")
+        return ResNet34(num_outputs=num_outputs, dropout=dropout)
     if model_name == "efficientnet_b0":
         return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
     if model_name == "swin_tiny":
