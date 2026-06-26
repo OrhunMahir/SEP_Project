@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torchvision.models import ResNet18_Weights, efficientnet_b0, resnet18, resnet50, swin_t
+from torchvision.models import (
+    EfficientNet_B0_Weights,
+    ResNet18_Weights,
+    efficientnet_b0,
+    resnet18,
+    resnet50,
+    swin_t,
+)
 
 from .constants import NUM_OUTPUTS
 
@@ -214,7 +221,9 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
         return ResNet50(num_outputs=num_outputs, dropout=dropout)
     if model_name == "efficientnet_b0":
         if pretrained:
-            raise ValueError("EfficientNet-B0 pretrained initialization is not configured.")
+            model = efficientnet_b0(weights=EfficientNet_B0_Weights.IMAGENET1K_V1, dropout=dropout)
+            model.classifier[1] = nn.Linear(model.classifier[1].in_features, num_outputs)
+            return model
         return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
     if model_name == "swin_tiny":
         if pretrained:
