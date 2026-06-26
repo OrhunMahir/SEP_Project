@@ -12,7 +12,11 @@ import torch
 from torch.utils.data import DataLoader
 
 from animal_recognition.data import ManifestDataset, evaluation_transform, load_split
-from animal_recognition.metrics import classification_metrics
+from animal_recognition.metrics import (
+    classification_metrics,
+    write_confusion_matrix_csv,
+    write_confusion_matrix_png,
+)
 from animal_recognition.models import build_model
 from animal_recognition.thresholding import apply_confidence_threshold
 
@@ -183,6 +187,34 @@ def main() -> None:
     calibration_dir = args.output_dir or output_dir / default_calibration_name
     calibration_dir.mkdir(parents=True, exist_ok=True)
     write_csv(calibration_dir / "threshold_sweep.csv", records)
+    baseline_predictions, _ = apply_confidence_threshold(
+        probabilities, float(baseline_record["threshold"])
+    )
+    best_predictions, _ = apply_confidence_threshold(
+        probabilities, float(best_record["threshold"])
+    )
+    write_confusion_matrix_csv(
+        calibration_dir / "confusion_matrix_baseline.csv",
+        target_list,
+        baseline_predictions.tolist(),
+    )
+    write_confusion_matrix_png(
+        calibration_dir / "confusion_matrix_baseline.png",
+        target_list,
+        baseline_predictions.tolist(),
+        "Confusion Matrix: baseline without confidence threshold",
+    )
+    write_confusion_matrix_csv(
+        calibration_dir / "confusion_matrix_best_threshold.csv",
+        target_list,
+        best_predictions.tolist(),
+    )
+    write_confusion_matrix_png(
+        calibration_dir / "confusion_matrix_best_threshold.png",
+        target_list,
+        best_predictions.tolist(),
+        f"Confusion Matrix: best threshold tau={float(best_record['threshold']):.2f}",
+    )
     result = {
         "checkpoint": str(checkpoint_path),
         "checkpoint_epoch": int(checkpoint["epoch"]),
@@ -192,6 +224,12 @@ def main() -> None:
         "selection_rule": selection_rule_text(args.selection_metric),
         "baseline_without_threshold": baseline_record,
         "best_threshold": best_record,
+        "confusion_matrix_files": {
+            "baseline_csv": str(calibration_dir / "confusion_matrix_baseline.csv"),
+            "baseline_png": str(calibration_dir / "confusion_matrix_baseline.png"),
+            "best_threshold_csv": str(calibration_dir / "confusion_matrix_best_threshold.csv"),
+            "best_threshold_png": str(calibration_dir / "confusion_matrix_best_threshold.png"),
+        },
         "candidates": records,
     }
     (calibration_dir / "threshold_summary.json").write_text(

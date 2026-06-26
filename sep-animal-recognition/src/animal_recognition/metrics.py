@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import csv
+from pathlib import Path
 from typing import Sequence
 
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support
 
-from .constants import NUM_OUTPUTS, REJECT_INTERNAL
+from .constants import CLASSES, NUM_OUTPUTS, REJECT_INTERNAL
+
+
+CONFUSION_LABELS = tuple(CLASSES) + ("reject",)
 
 
 def classification_metrics(targets: Sequence[int], predictions: Sequence[int]) -> dict[str, float | int]:
@@ -43,3 +48,50 @@ def classification_metrics(targets: Sequence[int], predictions: Sequence[int]) -
         "false_accepts": int(false_accepts),
         "false_rejects": int(false_rejects),
     }
+
+
+def confusion_matrix_counts(targets: Sequence[int], predictions: Sequence[int]) -> list[list[int]]:
+    """Return a stable 21x21 confusion matrix with rows=true and columns=predicted."""
+    matrix = confusion_matrix(targets, predictions, labels=list(range(NUM_OUTPUTS)))
+    return matrix.astype(int).tolist()
+
+
+def write_confusion_matrix_csv(
+    path: Path,
+    targets: Sequence[int],
+    predictions: Sequence[int],
+) -> None:
+    """Write confusion matrix counts as a labelled CSV table."""
+    matrix = confusion_matrix_counts(targets, predictions)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["true_label/predicted_label", *CONFUSION_LABELS])
+        for label, row in zip(CONFUSION_LABELS, matrix, strict=True):
+            writer.writerow([label, *row])
+
+
+def write_confusion_matrix_png(
+    path: Path,
+    targets: Sequence[int],
+    predictions: Sequence[int],
+    title: str,
+) -> None:
+    """Render a report-ready confusion matrix heatmap."""
+    import matplotlib.pyplot as plt
+
+    matrix = confusion_matrix_counts(targets, predictions)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure, axis = plt.subplots(figsize=(12, 10))
+    image = axis.imshow(matrix, interpolation="nearest", cmap="Blues")
+    axis.set_title(title)
+    axis.set_xlabel("Predicted label")
+    axis.set_ylabel("True label")
+    axis.set_xticks(range(NUM_OUTPUTS))
+    axis.set_yticks(range(NUM_OUTPUTS))
+    axis.set_xticklabels(CONFUSION_LABELS, rotation=90, fontsize=7)
+    axis.set_yticklabels(CONFUSION_LABELS, fontsize=7)
+    figure.colorbar(image, ax=axis, fraction=0.046, pad=0.04)
+    figure.tight_layout()
+    figure.savefig(path, dpi=180)
+    plt.close(figure)
