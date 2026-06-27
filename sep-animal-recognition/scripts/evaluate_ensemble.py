@@ -12,7 +12,11 @@ import torch
 from torch.utils.data import DataLoader
 
 from animal_recognition.data import ManifestDataset, evaluation_transform, load_split
-from animal_recognition.metrics import classification_metrics
+from animal_recognition.metrics import (
+    classification_metrics,
+    write_confusion_matrix_csv,
+    write_confusion_matrix_png,
+)
 from animal_recognition.models import build_model
 from animal_recognition.thresholding import apply_confidence_threshold
 
@@ -239,6 +243,29 @@ def main() -> None:
     output_dir = resolve_project_path(str(args.output_dir))
     output_dir.mkdir(parents=True, exist_ok=True)
     write_csv(output_dir / "ensemble_sweep.csv", records)
+    best_probabilities = (
+        probabilities[0] * float(best_record["model_0_weight"])
+        + probabilities[1] * float(best_record["model_1_weight"])
+    )
+    best_predictions, _ = apply_confidence_threshold(
+        best_probabilities,
+        float(best_record["threshold"]),
+    )
+    write_confusion_matrix_csv(
+        output_dir / "confusion_matrix_best_ensemble.csv",
+        target_list,
+        best_predictions.tolist(),
+    )
+    write_confusion_matrix_png(
+        output_dir / "confusion_matrix_best_ensemble.png",
+        target_list,
+        best_predictions.tolist(),
+        (
+            "Confusion Matrix: best ensemble "
+            f"w0={float(best_record['model_0_weight']):.2f}, "
+            f"tau={float(best_record['threshold']):.2f}"
+        ),
+    )
     result = {
         "device": str(device),
         "selection_metric": args.selection_metric,
@@ -256,6 +283,10 @@ def main() -> None:
             "checkpoint_epoch": int(checkpoints[1]["epoch"]),
         },
         "best_ensemble": best_record,
+        "confusion_matrix_files": {
+            "best_ensemble_csv": str(output_dir / "confusion_matrix_best_ensemble.csv"),
+            "best_ensemble_png": str(output_dir / "confusion_matrix_best_ensemble.png"),
+        },
         "candidates": records,
     }
     (output_dir / "ensemble_summary.json").write_text(
