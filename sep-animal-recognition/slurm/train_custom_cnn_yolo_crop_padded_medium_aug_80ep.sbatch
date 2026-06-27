@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=custom-cnn-yolo-padded-medium
+#SBATCH --job-name=custom-cnn-yolo-padded-80ep
 #SBATCH --partition=NvidiaAll
-#SBATCH --time=02:00:00
+#SBATCH --time=03:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --output=slurm_logs/%x_%j.out
 #SBATCH --error=slurm_logs/%x_%j.err
@@ -14,6 +14,6 @@ export PYTHONPATH="$PWD/src"
 
 nvidia-smi
 python scripts/train_baseline.py \
-  --config configs/custom_cnn_yolo_crop_padded_medium_aug.json \
+  --config configs/custom_cnn_yolo_crop_padded_medium_aug_80ep.json \
   --device cuda \
   --num-workers 4
