@@ -74,7 +74,13 @@ def main() -> None:
     train_samples = load_split(resolve_project_path(data_config["train_split"]), image_root)
     validation_samples = load_split(resolve_project_path(data_config["validation_split"]), image_root)
 
-    train_dataset = ManifestDataset(train_samples, training_transform(int(data_config["image_size"])))
+    train_dataset = ManifestDataset(
+        train_samples,
+        training_transform(
+            int(data_config["image_size"]),
+            config.get("augmentation"),
+        ),
+    )
     validation_dataset = ManifestDataset(
         validation_samples, evaluation_transform(int(data_config["image_size"]))
     )

@@ -51,16 +51,55 @@ def load_split(split_path: Path, image_root: Path) -> list[Sample]:
     return load_manifest(split_path, image_root)
 
 
-def training_transform(image_size: int = 224) -> transforms.Compose:
+def training_transform(
+    image_size: int = 224,
+    augmentation_config: dict[str, object] | None = None,
+) -> transforms.Compose:
     """Return the controlled augmentations used only for training images."""
-    return transforms.Compose([
-        transforms.RandomResizedCrop(image_size, scale=(0.75, 1.0)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
-        transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.10),
+    config = augmentation_config or {}
+    crop_scale = tuple(config.get("random_resized_crop_scale", (0.75, 1.0)))
+    crop_ratio = tuple(config.get("crop_aspect_ratio", (0.75, 1.3333333333333333)))
+    color_jitter_probability = float(config.get("color_jitter_probability", 1.0))
+    random_grayscale_probability = float(config.get("random_grayscale_probability", 0.0))
+    random_perspective_probability = float(config.get("random_perspective_probability", 0.0))
+    random_erasing_probability = float(config.get("random_erasing_probability", 0.0))
+
+    transform_steps: list[transforms.Transform] = [
+        transforms.RandomResizedCrop(image_size, scale=crop_scale, ratio=crop_ratio),
+        transforms.RandomHorizontalFlip(p=float(config.get("horizontal_flip_probability", 0.5))),
+        transforms.RandomRotation(float(config.get("rotation_degrees", 10))),
+    ]
+    color_jitter = transforms.ColorJitter(
+        brightness=float(config.get("brightness", 0.15)),
+        contrast=float(config.get("contrast", 0.15)),
+        saturation=float(config.get("saturation", 0.10)),
+        hue=float(config.get("hue", 0.0)),
+    )
+    if color_jitter_probability >= 1.0:
+        transform_steps.append(color_jitter)
+    elif color_jitter_probability > 0.0:
+        transform_steps.append(transforms.RandomApply([color_jitter], p=color_jitter_probability))
+    if random_grayscale_probability > 0.0:
+        transform_steps.append(transforms.RandomGrayscale(p=random_grayscale_probability))
+    if random_perspective_probability > 0.0:
+        transform_steps.append(
+            transforms.RandomPerspective(
+                distortion_scale=float(config.get("perspective_distortion", 0.10)),
+                p=random_perspective_probability,
+            )
+        )
+    transform_steps.extend([
         transforms.ToTensor(),
         transforms.Normalize(NORMALIZE_MEAN, NORMALIZE_STD),
     ])
+    if random_erasing_probability > 0.0:
+        transform_steps.append(
+            transforms.RandomErasing(
+                p=random_erasing_probability,
+                scale=tuple(config.get("erasing_scale", (0.02, 0.10))),
+            )
+        )
+    return transforms.Compose(transform_steps)
 
 
 def evaluation_transform(image_size: int = 224) -> transforms.Compose:

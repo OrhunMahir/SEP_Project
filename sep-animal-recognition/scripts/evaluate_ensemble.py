@@ -57,6 +57,58 @@ def parse_float_list(text: str) -> list[float]:
     return values
 
 
+def simplex_weight_candidates(
+    num_models: int,
+    step: float,
+) -> list[tuple[float, ...]]:
+    """Create weight vectors that sum to one on a regular simplex grid."""
+    if num_models < 2:
+        raise ValueError("At least two models are required for an ensemble.")
+    if not 0.0 < step <= 1.0:
+        raise ValueError("Weight step must be in the interval (0.0, 1.0].")
+
+    units_float = 1.0 / step
+    units = round(units_float)
+    if abs(units_float - units) > 1e-8:
+        raise ValueError("Weight step must divide 1.0 exactly, e.g. 0.05, 0.10, or 0.25.")
+
+    candidates: list[tuple[float, ...]] = []
+
+    def build(prefix: list[int], remaining: int, slots_left: int) -> None:
+        if slots_left == 1:
+            weights = tuple(round(unit * step, 6) for unit in (*prefix, remaining))
+            candidates.append(weights)
+            return
+        for unit in range(remaining + 1):
+            build([*prefix, unit], remaining - unit, slots_left - 1)
+
+    build([], units, num_models)
+    return candidates
+
+
+def parse_weight_candidates(
+    weights_texts: list[str] | None,
+    num_models: int,
+) -> list[tuple[float, ...]]:
+    """Parse explicit comma-separated weight vectors."""
+    if not weights_texts:
+        return []
+
+    candidates: list[tuple[float, ...]] = []
+    for weights_text in weights_texts:
+        weights = tuple(parse_float_list(weights_text))
+        if len(weights) != num_models:
+            raise ValueError(
+                f"Expected {num_models} weights per --weights value, received {len(weights)}."
+            )
+        if any(weight < 0.0 or weight > 1.0 for weight in weights):
+            raise ValueError("All model weights must be between 0.0 and 1.0.")
+        if abs(sum(weights) - 1.0) > 1e-6:
+            raise ValueError("Each --weights vector must sum to 1.0.")
+        candidates.append(tuple(round(weight, 6) for weight in weights))
+    return candidates
+
+
 def ranking_key(
     record: dict[str, float | int],
     selection_metric: str,
@@ -159,7 +211,7 @@ def main() -> None:
         type=Path,
         action="append",
         required=True,
-        help="Model config to ensemble. Pass exactly two configs.",
+        help="Model config to ensemble. Pass once per model.",
     )
     parser.add_argument(
         "--checkpoint",
@@ -176,7 +228,19 @@ def main() -> None:
     parser.add_argument(
         "--model-0-weights",
         default="0.50,0.60,0.70,0.80,0.90",
-        help="Comma-separated weights for the first model; second model gets 1-w.",
+        help="Two-model mode only: comma-separated weights for the first model; second gets 1-w.",
+    )
+    parser.add_argument(
+        "--weights",
+        action="append",
+        default=None,
+        help="Explicit comma-separated weight vector. Can be passed multiple times.",
+    )
+    parser.add_argument(
+        "--weight-step",
+        type=float,
+        default=0.05,
+        help="Grid step for automatic N-model simplex weights when more than two configs are used.",
     )
     parser.add_argument(
         "--selection-metric",
@@ -191,8 +255,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if len(args.config) != 2:
-        raise ValueError("This script currently expects exactly two --config arguments.")
+    if len(args.config) < 2:
+        raise ValueError("Pass at least two --config arguments.")
     if args.checkpoint is not None and len(args.checkpoint) != len(args.config):
         raise ValueError("Pass either no --checkpoint values or one checkpoint per config.")
 
@@ -203,7 +267,7 @@ def main() -> None:
     if device.type == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is not available.")
 
-    checkpoint_paths = args.checkpoint or [None, None]
+    checkpoint_paths = args.checkpoint or [None] * len(args.config)
     model_outputs = [
         collect_validation_probabilities(config, checkpoint, device, args.num_workers)
         for config, checkpoint in zip(args.config, checkpoint_paths, strict=True)
@@ -214,28 +278,38 @@ def main() -> None:
     checkpoints = [item[3] for item in model_outputs]
     resolved_checkpoints = [item[4] for item in model_outputs]
 
-    if not torch.equal(targets[0], targets[1]):
-        raise ValueError("Validation targets differ between model configs.")
-    if relative_paths[0] != relative_paths[1]:
-        raise ValueError("Validation sample order differs between model configs.")
+    for target in targets[1:]:
+        if not torch.equal(targets[0], target):
+            raise ValueError("Validation targets differ between model configs.")
+    for path_list in relative_paths[1:]:
+        if relative_paths[0] != path_list:
+            raise ValueError("Validation sample order differs between model configs.")
 
     target_list = targets[0].tolist()
     thresholds = threshold_values(args.threshold_start, args.threshold_end, args.threshold_step)
+    explicit_weights = parse_weight_candidates(args.weights, len(args.config))
+    if explicit_weights:
+        weight_candidates = explicit_weights
+    elif len(args.config) == 2:
+        weight_candidates = []
+        for model_0_weight in parse_float_list(args.model_0_weights):
+            if not 0.0 <= model_0_weight <= 1.0:
+                raise ValueError("Model weights must be between 0.0 and 1.0.")
+            weight_candidates.append((round(model_0_weight, 6), round(1.0 - model_0_weight, 6)))
+    else:
+        weight_candidates = simplex_weight_candidates(len(args.config), args.weight_step)
+
     records: list[dict[str, float | int]] = []
-    for model_0_weight in parse_float_list(args.model_0_weights):
-        if not 0.0 <= model_0_weight <= 1.0:
-            raise ValueError("Model weights must be between 0.0 and 1.0.")
-        model_1_weight = 1.0 - model_0_weight
-        ensemble_probabilities = (
-            probabilities[0] * model_0_weight + probabilities[1] * model_1_weight
-        )
+    for weights in weight_candidates:
+        ensemble_probabilities = torch.zeros_like(probabilities[0])
+        for probability, weight in zip(probabilities, weights, strict=True):
+            ensemble_probabilities += probability * weight
         for threshold in thresholds:
             predictions, _ = apply_confidence_threshold(ensemble_probabilities, threshold)
-            record: dict[str, float | int] = {
-                "model_0_weight": round(model_0_weight, 6),
-                "model_1_weight": round(model_1_weight, 6),
-                "threshold": threshold,
-            }
+            record: dict[str, float | int] = {"threshold": threshold}
+            record.update(
+                {f"model_{index}_weight": weight for index, weight in enumerate(weights)}
+            )
             record.update(classification_metrics(target_list, predictions.tolist()))
             records.append(record)
 
@@ -243,10 +317,9 @@ def main() -> None:
     output_dir = resolve_project_path(str(args.output_dir))
     output_dir.mkdir(parents=True, exist_ok=True)
     write_csv(output_dir / "ensemble_sweep.csv", records)
-    best_probabilities = (
-        probabilities[0] * float(best_record["model_0_weight"])
-        + probabilities[1] * float(best_record["model_1_weight"])
-    )
+    best_probabilities = torch.zeros_like(probabilities[0])
+    for index, probability in enumerate(probabilities):
+        best_probabilities += probability * float(best_record[f"model_{index}_weight"])
     best_predictions, _ = apply_confidence_threshold(
         best_probabilities,
         float(best_record["threshold"]),
@@ -261,27 +334,32 @@ def main() -> None:
         target_list,
         best_predictions.tolist(),
         (
-            "Confusion Matrix: best ensemble "
-            f"w0={float(best_record['model_0_weight']):.2f}, "
+            "Confusion Matrix: best ensemble, "
+            + ", ".join(
+                f"w{index}={float(best_record[f'model_{index}_weight']):.2f}"
+                for index in range(len(args.config))
+            )
+            + ", "
             f"tau={float(best_record['threshold']):.2f}"
         ),
     )
     result = {
         "device": str(device),
         "selection_metric": args.selection_metric,
+        "weight_candidates": len(weight_candidates),
         "validation_samples": len(target_list),
-        "model_0": {
-            "config": str(args.config[0]),
-            "checkpoint": str(resolved_checkpoints[0]),
-            "model_name": checkpoints[0]["model_name"],
-            "checkpoint_epoch": int(checkpoints[0]["epoch"]),
-        },
-        "model_1": {
-            "config": str(args.config[1]),
-            "checkpoint": str(resolved_checkpoints[1]),
-            "model_name": checkpoints[1]["model_name"],
-            "checkpoint_epoch": int(checkpoints[1]["epoch"]),
-        },
+        "models": [
+            {
+                "index": index,
+                "config": str(config),
+                "checkpoint": str(checkpoint),
+                "model_name": checkpoint_payload["model_name"],
+                "checkpoint_epoch": int(checkpoint_payload["epoch"]),
+            }
+            for index, (config, checkpoint, checkpoint_payload) in enumerate(
+                zip(args.config, resolved_checkpoints, checkpoints, strict=True)
+            )
+        ],
         "best_ensemble": best_record,
         "confusion_matrix_files": {
             "best_ensemble_csv": str(output_dir / "confusion_matrix_best_ensemble.csv"),
@@ -289,16 +367,22 @@ def main() -> None:
         },
         "candidates": records,
     }
+    if len(args.config) == 2:
+        result["model_0"] = result["models"][0]
+        result["model_1"] = result["models"][1]
     (output_dir / "ensemble_summary.json").write_text(
         json.dumps(result, indent=2), encoding="utf-8"
     )
 
     print(f"Device: {device}")
     print(f"Selection metric: {args.selection_metric}")
+    weights_text = " | ".join(
+        f"model_{index}_weight={float(best_record[f'model_{index}_weight']):.2f}"
+        for index in range(len(args.config))
+    )
     print(
         "Best ensemble: "
-        f"model_0_weight={float(best_record['model_0_weight']):.2f} | "
-        f"model_1_weight={float(best_record['model_1_weight']):.2f} | "
+        f"{weights_text} | "
         f"threshold={float(best_record['threshold']):.2f} | "
         f"accuracy={float(best_record['accuracy']):.4f} | "
         f"macro_f1={float(best_record['macro_f1']):.4f} | "
