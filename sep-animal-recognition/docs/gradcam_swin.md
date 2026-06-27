@@ -106,3 +106,10 @@ sbatch \
 Set `NO_YOLO=1` for an explicit raw-image fallback or ablation. Optional
 variables also include `TARGET_CLASS`, `TARGET_LAYER`, `YOLO_DEVICE`, and
 `LIMIT`.
+
+
+## Reproduced results
+
+The available-data reproduction, calibrated validation metrics, confusion
+matrices, and all 20 per-class Grad-CAM examples are collected in the
+[`Swin-Tiny + YOLO Grad-CAM results report`](results/swin_tiny_gradcam_available4534/README.md).

@@ -1,0 +1,60 @@
+{
+  "experiment": {
+    "name": "swin_tiny_pretrained_yolo_available4534",
+    "date": "2026-06-27",
+    "seed": 42,
+    "train_samples": 3628,
+    "validation_samples": 906,
+    "available_samples": 4534,
+    "original_manifest_rows": 5432,
+    "missing_source_images": 898,
+    "trainable_parameters": 27535503,
+    "best_checkpoint_epoch": 46,
+    "epochs_completed": 50,
+    "elapsed_seconds": 1125.759200726985
+  },
+  "preprocessing": {
+    "detector": "yolov8n.pt",
+    "detector_confidence": 0.25,
+    "padding_fraction": 0.1,
+    "square_crop": true,
+    "detector_crops": 3557,
+    "raw_image_fallbacks": 977
+  },
+  "baseline": {
+    "confidence_threshold": 0.0,
+    "accuracy": 0.9426048565121413,
+    "macro_precision": 0.9307786615332586,
+    "macro_recall": 0.9629872725150752,
+    "macro_f1": 0.9445716606241981,
+    "weighted_f1": 0.9424405829451744,
+    "reject_precision": 0.9869565217391304,
+    "reject_recall": 0.8832684824902723,
+    "reject_f1": 0.9322381930184805,
+    "false_accepts": 30,
+    "false_rejects": 3
+  },
+  "calibrated": {
+    "confidence_threshold": 0.5,
+    "selection_metric": "accuracy",
+    "accuracy": 0.9459161147902869,
+    "macro_precision": 0.942751410786108,
+    "macro_recall": 0.9574703985173881,
+    "macro_f1": 0.94825653491566,
+    "weighted_f1": 0.9456666713513033,
+    "reject_precision": 0.9591836734693877,
+    "reject_recall": 0.914396887159533,
+    "reject_f1": 0.9362549800796812,
+    "false_accepts": 22,
+    "false_rejects": 10
+  },
+  "gradcam": {
+    "target_layer": "last_block_norm1",
+    "target_class": "predicted",
+    "class_samples_requested": 20,
+    "normal_pipeline_explanations": 17,
+    "detector_rejects": 3,
+    "raw_fallback_explanations": 3
+  }
+}
+
