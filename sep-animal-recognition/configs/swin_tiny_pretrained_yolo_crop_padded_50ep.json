@@ -1,0 +1,37 @@
+{
+  "experiment_name": "swin_tiny_pretrained_yolo_crop_padded_50ep",
+  "seed": 42,
+  "model": {
+    "name": "swin_tiny",
+    "num_outputs": 21,
+    "dropout": 0.1,
+    "attention_dropout": 0.0,
+    "pretrained": true
+  },
+  "data": {
+    "image_size": 224,
+    "batch_size": 16,
+    "num_workers": 4,
+    "train_split": "splits/train_seed42.csv",
+    "validation_split": "splits/val_seed42.csv",
+    "image_root": "runs/swin_tiny_pretrained_yolo_crop_padded_50ep/yolo_crops"
+  },
+  "training": {
+    "max_epochs": 50,
+    "warmup_epochs": 5,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "label_smoothing": 0.1,
+    "early_stopping_patience": 12
+  },
+  "yolo": {
+    "model": "yolov8n.pt",
+    "confidence_threshold": 0.25,
+    "padding_fraction": 0.1,
+    "square_crop": true
+  },
+  "postprocessing": {
+    "threshold": 0.0
+  },
+  "output_dir": "runs/swin_tiny_pretrained_yolo_crop_padded_50ep"
+}

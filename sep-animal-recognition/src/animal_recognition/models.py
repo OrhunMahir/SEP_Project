@@ -7,6 +7,7 @@ from torch import nn
 from torchvision.models import (
     EfficientNet_B0_Weights,
     ResNet18_Weights,
+    Swin_T_Weights,
     efficientnet_b0,
     resnet18,
     resnet50,
@@ -274,7 +275,13 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
         return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
     if model_name == "swin_tiny":
         if pretrained:
-            raise ValueError("Swin-Tiny pretrained initialization is not configured.")
+            model = swin_t(
+                weights=Swin_T_Weights.IMAGENET1K_V1,
+                dropout=dropout,
+                attention_dropout=float(model_config.get("attention_dropout", 0.0)),
+            )
+            model.head = nn.Linear(model.head.in_features, num_outputs)
+            return model
         return SwinTiny(
             num_outputs=num_outputs,
             dropout=dropout,
