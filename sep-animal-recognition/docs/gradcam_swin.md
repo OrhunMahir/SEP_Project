@@ -82,3 +82,27 @@ also applies the configured confidence threshold. When a low-confidence
 prediction becomes reject, the heatmap still explains the classifier's raw
 highest-scoring class because the threshold itself is a postprocessing rule,
 not a learned visual class.
+
+## Slurm example
+
+Submit from the `sep-animal-recognition` directory. The job uses
+`SLURM_SUBMIT_DIR`, so it does not depend on one user's project path.
+
+```bash
+sbatch \
+  --export=ALL,DATASET_ROOT=/absolute/path/to/dataset/all,CONFIDENCE_THRESHOLD=0.50,LIMIT=20 \
+  slurm/gradcam_swin.sbatch
+```
+
+The default config, checkpoint, and manifest match the pretrained,
+YOLO-cropped Swin-Tiny experiment. Override them when needed:
+
+```bash
+sbatch \
+  --export=ALL,CONFIG_PATH=runs/available_data/config.json,CHECKPOINT_PATH=runs/experiment/best.pt,MANIFEST_PATH=runs/available_data/samples.csv,DATASET_ROOT=/absolute/path/to/dataset/all,OUTPUT_DIR=runs/experiment/gradcam,CONFIDENCE_THRESHOLD=0.50 \
+  slurm/gradcam_swin.sbatch
+```
+
+Set `NO_YOLO=1` for an explicit raw-image fallback or ablation. Optional
+variables also include `TARGET_CLASS`, `TARGET_LAYER`, `YOLO_DEVICE`, and
+`LIMIT`.
