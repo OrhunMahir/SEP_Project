@@ -1,5 +1,5 @@
 {
-  "experiment_name": "swin_tiny_pretrained",
+  "experiment_name": "swin_tiny_pretrained_yolo",
   "seed": 42,
   "model": {
     "name": "swin_tiny",
@@ -28,5 +28,12 @@
   "postprocessing": {
     "confidence_threshold": 0.54
   },
-  "output_dir": "runs/swin_tiny_pretrained"
+  "yolo": {
+    "model": "yolov8n.pt",
+    "confidence_threshold": 0.25,
+    "allowed_classes": ["cat", "dog"],
+    "crop_padding": 0.10,
+    "selection": "largest_area"
+  },
+  "output_dir": "runs/swin_tiny_pretrained_yolo"
 }

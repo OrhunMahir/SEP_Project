@@ -227,6 +227,7 @@ class SwinTiny(nn.Module):
         dropout: float = 0.1,
         attention_dropout: float = 0.0,
         weights_name: object = None,
+        trainable_backbone: str = "full",
     ) -> None:
         super().__init__()
         if num_outputs != NUM_OUTPUTS:
@@ -235,15 +236,37 @@ class SwinTiny(nn.Module):
             raise ValueError("dropout must be in the interval [0.0, 1.0).")
         if not 0.0 <= attention_dropout < 1.0:
             raise ValueError("attention_dropout must be in the interval [0.0, 1.0).")
+        if trainable_backbone not in {"full", "last_stage", "head_only"}:
+            raise ValueError(
+                "trainable_backbone must be one of: 'full', 'last_stage', 'head_only'."
+            )
         self.network = swin_t(
             weights=_resolve_swin_t_weights(weights_name),
             dropout=dropout,
             attention_dropout=attention_dropout,
         )
         self.network.head = nn.Linear(self.network.head.in_features, num_outputs)
+        self._set_trainable_backbone(trainable_backbone)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.network(inputs)
+
+    def _set_trainable_backbone(self, trainable_backbone: str) -> None:
+        """Control how much of the pretrained Swin backbone is fine-tuned."""
+        if trainable_backbone == "full":
+            return
+
+        for parameter in self.network.parameters():
+            parameter.requires_grad = False
+
+        for parameter in self.network.head.parameters():
+            parameter.requires_grad = True
+
+        if trainable_backbone == "last_stage":
+            for parameter in self.network.features[-1].parameters():
+                parameter.requires_grad = True
+            for parameter in self.network.norm.parameters():
+                parameter.requires_grad = True
 
 
 def _resolve_swin_t_weights(weights_name: object) -> Swin_T_Weights | None:
@@ -289,6 +312,7 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
             dropout=dropout,
             attention_dropout=float(model_config.get("attention_dropout", 0.0)),
             weights_name=weights_name,
+            trainable_backbone=str(model_config.get("trainable_backbone", "full")),
         )
     raise ValueError(f"Unsupported model name: {model_name}")
 
