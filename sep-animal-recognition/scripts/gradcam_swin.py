@@ -72,18 +72,22 @@ def class_name(internal_label: int) -> str:
 
 
 def parse_target_class(
-    specification: str, true_external_label: int | None
+    specification: str,
+    true_external_label: int | None,
 ) -> int | None:
-    """Resolve predicted, true, numeric, reject, or class-name target selections."""
+    """Resolve predicted, true, numeric, reject, or class-name targets."""
     normalized = specification.strip()
+
     if normalized.casefold() == "predicted":
         return None
+
     if normalized.casefold() == "true":
         if true_external_label is None:
             raise ValueError(
                 "--target-class true requires labels supplied by --manifest."
             )
         return external_to_internal(true_external_label)
+
     if normalized.casefold() in {"reject", "reject(-1)"}:
         return REJECT_INTERNAL
 
@@ -96,12 +100,15 @@ def parse_target_class(
             for index, name in enumerate(CLASSES)
             if name.casefold() == normalized_name
         ]
+
         if not matches:
             raise ValueError(f"Unknown target class: {specification}")
+
         return matches[0]
 
     if numeric_label == REJECT_INTERNAL:
         return REJECT_INTERNAL
+
     return external_to_internal(numeric_label)
 
 
@@ -110,8 +117,9 @@ def load_swin_checkpoint(
     fallback_config: dict[str, Any],
     device: torch.device,
 ) -> tuple[nn.Module, dict[str, Any], dict[str, Any]]:
-    """Build the checkpoint's wrapped or raw Swin architecture without downloads."""
+    """Build the checkpoint architecture without downloading weights."""
     checkpoint = torch.load(checkpoint_path, map_location=device)
+
     if "model_state_dict" not in checkpoint:
         raise KeyError(
             f"Checkpoint does not contain model_state_dict: {checkpoint_path}"
@@ -119,26 +127,39 @@ def load_swin_checkpoint(
 
     checkpoint_config = checkpoint.get("config")
     effective_config = (
-        checkpoint_config if isinstance(checkpoint_config, dict) else fallback_config
+        checkpoint_config
+        if isinstance(checkpoint_config, dict)
+        else fallback_config
     )
+
     model_config = effective_config.get("model", {})
+
     if model_config.get("name") != "swin_tiny":
         raise ValueError(
-            f"Expected a swin_tiny checkpoint, received: {model_config.get('name')}"
+            "Expected a swin_tiny checkpoint, received: "
+            f"{model_config.get('name')}"
         )
 
     num_outputs = int(model_config.get("num_outputs", NUM_OUTPUTS))
     dropout = float(model_config.get("dropout", 0.1))
-    attention_dropout = float(model_config.get("attention_dropout", 0.0))
+    attention_dropout = float(
+        model_config.get("attention_dropout", 0.0)
+    )
+
     state_dict = dict(checkpoint["model_state_dict"])
-    if state_dict and all(key.startswith("module.") for key in state_dict):
+
+    if state_dict and all(
+        key.startswith("module.") for key in state_dict
+    ):
         state_dict = {
-            key.removeprefix("module."): value for key, value in state_dict.items()
+            key.removeprefix("module."): value
+            for key, value in state_dict.items()
         }
 
-    # Scratch Swin checkpoints use the project's wrapper and therefore have a
-    # `network.` prefix. Pretrained Swin checkpoints are raw torchvision models.
-    wrapped_checkpoint = any(key.startswith("network.") for key in state_dict)
+    wrapped_checkpoint = any(
+        key.startswith("network.") for key in state_dict
+    )
+
     if wrapped_checkpoint:
         model: nn.Module = SwinTiny(
             num_outputs=num_outputs,
@@ -151,10 +172,14 @@ def load_swin_checkpoint(
             dropout=dropout,
             attention_dropout=attention_dropout,
         )
-        model.head = nn.Linear(model.head.in_features, num_outputs)
+        model.head = nn.Linear(
+            model.head.in_features,
+            num_outputs,
+        )
 
     model.load_state_dict(state_dict, strict=True)
     model.to(device).eval()
+
     return model, effective_config, checkpoint
 
 
@@ -164,13 +189,24 @@ def read_manifest_items(
     limit: int | None,
 ) -> list[InputItem]:
     """Read labelled inputs while preserving manifest order."""
-    with manifest_path.open(newline="", encoding="utf-8") as handle:
+    with manifest_path.open(
+        newline="",
+        encoding="utf-8",
+    ) as handle:
         reader = csv.DictReader(handle)
-        if not {"filename", "label"}.issubset(reader.fieldnames or []):
-            raise ValueError("Manifest must contain filename and label columns.")
+
+        if not {"filename", "label"}.issubset(
+            reader.fieldnames or []
+        ):
+            raise ValueError(
+                "Manifest must contain filename and label columns."
+            )
+
         rows = list(reader)
+
     if limit is not None:
         rows = rows[:limit]
+
     return [
         InputItem(
             path=dataset_root / row["filename"],
@@ -182,11 +218,13 @@ def read_manifest_items(
 
 
 def detections_from_result(result: Any) -> list[Detection]:
-    """Convert one Ultralytics result into dependency-neutral detections."""
+    """Convert one Ultralytics result into project detections."""
     if result.boxes is None:
         return []
+
     names = result.names
     detections: list[Detection] = []
+
     for class_id, confidence, coordinates in zip(
         result.boxes.cls.tolist(),
         result.boxes.conf.tolist(),
@@ -194,6 +232,7 @@ def detections_from_result(result: Any) -> list[Detection]:
         strict=True,
     ):
         class_index = int(class_id)
+
         detections.append(
             Detection(
                 class_name=str(names[class_index]),
@@ -204,6 +243,7 @@ def detections_from_result(result: Any) -> list[Detection]:
                 y2=float(coordinates[3]),
             )
         )
+
     return detections
 
 
@@ -211,38 +251,116 @@ def prepare_model_input(
     image: Image.Image,
     image_size: int,
 ) -> tuple[Image.Image, torch.Tensor]:
-    """Apply the exact deterministic resize, center crop, and normalization."""
+    """Apply deterministic resize, center crop, and normalization."""
     resize_size = round(image_size * 256 / 224)
+
     display_transform = transforms.Compose(
         [
             transforms.Resize(resize_size),
             transforms.CenterCrop(image_size),
         ]
     )
-    display_image = display_transform(image.convert("RGB"))
+
+    display_image = display_transform(
+        image.convert("RGB")
+    )
+
     tensor = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize(NORMALIZE_MEAN, NORMALIZE_STD),
+            transforms.Normalize(
+                NORMALIZE_MEAN,
+                NORMALIZE_STD,
+            ),
         ]
     )(display_image)
+
     return display_image, tensor
 
 
 def colorize_heatmap(
-    heatmap: torch.Tensor, output_size: tuple[int, int]
+    heatmap: torch.Tensor,
+    output_size: tuple[int, int],
 ) -> Image.Image:
-    """Convert a normalized Grad-CAM tensor into a resized RGB heatmap."""
-    values = heatmap.numpy()
-    rgba = matplotlib.colormaps.get_cmap("jet")(values)
-    rgb = Image.fromarray(np.uint8(rgba[:, :, :3] * 255))
-    resampling = getattr(Image, "Resampling", Image)
-    return rgb.resize(output_size, resample=resampling.BILINEAR)
+    """Convert normalized Grad-CAM values into an RGB heatmap."""
+    values = np.clip(
+        heatmap.numpy(),
+        0.0,
+        1.0,
+    )
+
+    rgba = matplotlib.colormaps.get_cmap("turbo")(values)
+    rgb = Image.fromarray(
+        np.uint8(rgba[:, :, :3] * 255)
+    )
+
+    resampling = getattr(
+        Image,
+        "Resampling",
+        Image,
+    )
+
+    return rgb.resize(
+        output_size,
+        resample=resampling.BILINEAR,
+    )
+
+
+def overlay_heatmap(
+    image: Image.Image,
+    heatmap: torch.Tensor,
+    alpha: float,
+) -> Image.Image:
+    """Overlay activated regions without tinting the entire image."""
+    heatmap_image = colorize_heatmap(
+        heatmap,
+        image.size,
+    )
+
+    values = np.uint8(
+        np.clip(
+            heatmap.numpy(),
+            0.0,
+            1.0,
+        )
+        * 255
+    )
+
+    activation_mask = Image.fromarray(
+        values,
+        mode="L",
+    )
+
+    resampling = getattr(
+        Image,
+        "Resampling",
+        Image,
+    )
+
+    activation_mask = activation_mask.resize(
+        image.size,
+        resample=resampling.BILINEAR,
+    )
+
+    scaled_mask = activation_mask.point(
+        lambda value: round(value * alpha)
+    )
+
+    return Image.composite(
+        heatmap_image,
+        image.convert("RGB"),
+        scaled_mask,
+    )
 
 
 def safe_stem(index: int, name: str) -> str:
-    """Create a stable, filesystem-safe artifact prefix."""
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(name).stem).strip("._")
+    """Create a stable and filesystem-safe artifact prefix."""
+    cleaned = re.sub(
+        r"[^A-Za-z0-9._-]+",
+        "_",
+        Path(name).stem,
+    ).strip("._")
+
     return f"{index:04d}_{cleaned or 'image'}"
 
 
@@ -256,13 +374,22 @@ def save_explanation_panel(
     title: str,
 ) -> None:
     """Save a report-ready four-panel explanation."""
-    figure, axes = plt.subplots(2, 2, figsize=(11, 10))
+    figure, axes = plt.subplots(
+        2,
+        2,
+        figsize=(11, 10),
+    )
+
     axes[0, 0].imshow(original)
     axes[0, 0].set_title(
-        "Original image and YOLO crop" if crop_box else "Original image"
+        "Original image and YOLO crop"
+        if crop_box
+        else "Original image"
     )
+
     if crop_box is not None:
         left, top, right, bottom = crop_box
+
         axes[0, 0].add_patch(
             Rectangle(
                 (left, top),
@@ -273,108 +400,248 @@ def save_explanation_panel(
                 facecolor="none",
             )
         )
+
     axes[0, 1].imshow(model_input)
-    axes[0, 1].set_title("Exact classifier input")
+    axes[0, 1].set_title(
+        "Exact classifier input"
+    )
+
     axes[1, 0].imshow(heatmap)
-    axes[1, 0].set_title("Grad-CAM heatmap")
+    axes[1, 0].set_title(
+        "Grad-CAM (purple/blue: low → red: high)"
+    )
+
     axes[1, 1].imshow(overlay)
-    axes[1, 1].set_title("Grad-CAM overlay")
+    axes[1, 1].set_title(
+        "Activation-weighted overlay"
+    )
+
     for axis in axes.flat:
         axis.axis("off")
-    figure.suptitle(title, fontsize=12)
+
+    figure.suptitle(
+        title,
+        fontsize=12,
+    )
     figure.tight_layout()
-    figure.savefig(path, dpi=180, bbox_inches="tight")
+    figure.savefig(
+        path,
+        dpi=180,
+        bbox_inches="tight",
+    )
     plt.close(figure)
 
 
-def save_detector_reject_panel(path: Path, original: Image.Image, title: str) -> None:
-    """Explain a YOLO-gated reject for which the classifier never ran."""
-    figure, axis = plt.subplots(figsize=(8, 7))
+def save_detector_reject_panel(
+    path: Path,
+    original: Image.Image,
+    title: str,
+) -> None:
+    """Explain a YOLO-gated reject where Swin never ran."""
+    figure, axis = plt.subplots(
+        figsize=(8, 7)
+    )
+
     axis.imshow(original)
     axis.axis("off")
     axis.set_title(title)
+
     figure.tight_layout()
-    figure.savefig(path, dpi=180, bbox_inches="tight")
+    figure.savefig(
+        path,
+        dpi=180,
+        bbox_inches="tight",
+    )
     plt.close(figure)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--checkpoint", type=Path, required=True)
-    inputs = parser.add_mutually_exclusive_group(required=True)
-    inputs.add_argument("--image", type=Path, nargs="+")
-    inputs.add_argument("--manifest", type=Path)
-    parser.add_argument("--dataset-root", type=Path, default=None)
-    parser.add_argument("--limit", type=int, default=None)
+    parser = argparse.ArgumentParser(
+        description=__doc__
+    )
+
+    parser.add_argument(
+        "--config",
+        type=Path,
+        required=True,
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        required=True,
+    )
+
+    inputs = parser.add_mutually_exclusive_group(
+        required=True
+    )
+
+    inputs.add_argument(
+        "--image",
+        type=Path,
+        nargs="+",
+    )
+    inputs.add_argument(
+        "--manifest",
+        type=Path,
+    )
+
+    parser.add_argument(
+        "--dataset-root",
+        type=Path,
+        default=None,
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+    )
     parser.add_argument(
         "--target-class",
         default="predicted",
-        help="predicted, true, reject, external index -1..19, internal reject 20, or class name.",
+        help=(
+            "predicted, true, reject, external index -1..19, "
+            "internal reject 20, or class name."
+        ),
     )
     parser.add_argument(
         "--target-layer",
-        default="last_block_norm1",
-        choices=["last_block_norm1", "last_block_norm2", "final_norm"],
+        default="stage3_last_norm1",
+        choices=[
+            "stage3_last_norm1",
+            "last_block_norm1",
+            "last_block_norm2",
+            "final_norm",
+        ],
     )
-    parser.add_argument("--no-yolo", action="store_true")
-    parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
-    parser.add_argument("--yolo-device", default="0")
+    parser.add_argument(
+        "--no-yolo",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--device",
+        default="auto",
+        choices=[
+            "auto",
+            "cpu",
+            "cuda",
+        ],
+    )
+    parser.add_argument(
+        "--yolo-device",
+        default="0",
+    )
     parser.add_argument(
         "--confidence-threshold",
         type=float,
         default=None,
-        help="Override the checkpoint config's postprocessing threshold.",
+        help=(
+            "Override the checkpoint config's "
+            "postprocessing threshold."
+        ),
     )
-    parser.add_argument("--alpha", type=float, default=0.45)
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.45,
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=PROJECT_ROOT / "runs" / "swin_gradcam",
+        default=(
+            PROJECT_ROOT
+            / "runs"
+            / "swin_gradcam"
+        ),
     )
+
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    if args.limit is not None and args.limit < 1:
-        raise ValueError("--limit must be positive.")
-    if not 0.0 <= args.alpha <= 1.0:
-        raise ValueError("--alpha must be between 0.0 and 1.0.")
 
-    config_path = resolve_project_path(args.config)
-    checkpoint_path = resolve_project_path(args.checkpoint)
+    if args.limit is not None and args.limit < 1:
+        raise ValueError(
+            "--limit must be positive."
+        )
+
+    if not 0.0 <= args.alpha <= 1.0:
+        raise ValueError(
+            "--alpha must be between 0.0 and 1.0."
+        )
+
+    config_path = resolve_project_path(
+        args.config
+    )
+    checkpoint_path = resolve_project_path(
+        args.checkpoint
+    )
+
     if not checkpoint_path.is_file():
-        raise FileNotFoundError(f"Checkpoint was not found: {checkpoint_path}")
+        raise FileNotFoundError(
+            f"Checkpoint was not found: {checkpoint_path}"
+        )
 
     if args.device == "auto":
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device(
+            "cuda"
+            if torch.cuda.is_available()
+            else "cpu"
+        )
     else:
         device = torch.device(args.device)
-    if device.type == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is not available.")
+
+    if (
+        device.type == "cuda"
+        and not torch.cuda.is_available()
+    ):
+        raise RuntimeError(
+            "CUDA was requested but is not available."
+        )
 
     config = read_json(config_path)
-    model, effective_config, checkpoint = load_swin_checkpoint(
-        checkpoint_path,
-        config,
-        device,
+
+    model, effective_config, checkpoint = (
+        load_swin_checkpoint(
+            checkpoint_path,
+            config,
+            device,
+        )
     )
-    data_config = effective_config.get("data", {})
-    image_size = int(data_config.get("image_size", 224))
-    postprocessing = effective_config.get("postprocessing", {})
+
+    data_config = effective_config.get(
+        "data",
+        {},
+    )
+    image_size = int(
+        data_config.get("image_size", 224)
+    )
+
+    postprocessing = effective_config.get(
+        "postprocessing",
+        {},
+    )
+
     confidence_threshold = (
         float(args.confidence_threshold)
         if args.confidence_threshold is not None
-        else float(postprocessing.get("threshold", 0.0))
+        else float(
+            postprocessing.get("threshold", 0.0)
+        )
     )
+
     if not 0.0 <= confidence_threshold <= 1.0:
-        raise ValueError("The confidence threshold must be between 0.0 and 1.0.")
+        raise ValueError(
+            "The confidence threshold must be "
+            "between 0.0 and 1.0."
+        )
 
     if args.image:
         items = [
             InputItem(
-                path=resolve_project_path(image_path),
+                path=resolve_project_path(
+                    image_path
+                ),
                 relative_name=image_path.name,
                 true_external_label=None,
             )
@@ -382,56 +649,128 @@ def main() -> None:
         ]
     else:
         if args.dataset_root is None:
-            raise ValueError("--dataset-root is required when using --manifest.")
+            raise ValueError(
+                "--dataset-root is required "
+                "when using --manifest."
+            )
+
         items = read_manifest_items(
             resolve_project_path(args.manifest),
-            resolve_project_path(args.dataset_root),
+            resolve_project_path(
+                args.dataset_root
+            ),
             args.limit,
         )
 
     yolo_config = effective_config.get("yolo")
-    use_yolo = isinstance(yolo_config, dict) and not args.no_yolo
+    use_yolo = (
+        isinstance(yolo_config, dict)
+        and not args.no_yolo
+    )
+
     detector = None
+
     if use_yolo:
         try:
             from ultralytics import YOLO
         except ImportError as error:
             raise RuntimeError(
-                "Ultralytics is required by this config. Install requirements-yolo.txt "
-                "or pass --no-yolo."
+                "Ultralytics is required by this config. "
+                "Install requirements-yolo.txt or pass "
+                "--no-yolo."
             ) from error
-        detector = YOLO(str(yolo_config.get("model", "yolov8n.pt")))
 
-    output_dir = resolve_project_path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    target_layer = resolve_swin_target_layer(model, args.target_layer)
+        detector = YOLO(
+            str(
+                yolo_config.get(
+                    "model",
+                    "yolov8n.pt",
+                )
+            )
+        )
+
+    output_dir = resolve_project_path(
+        args.output_dir
+    )
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    target_layer = resolve_swin_target_layer(
+        model,
+        args.target_layer,
+    )
+
     records: list[dict[str, Any]] = []
 
-    with SwinGradCAM(model, target_layer) as explainer:
-        for index, item in enumerate(items, start=1):
+    with SwinGradCAM(
+        model,
+        target_layer,
+    ) as explainer:
+        for index, item in enumerate(
+            items,
+            start=1,
+        ):
             if not item.path.is_file():
-                raise FileNotFoundError(f"Input image was not found: {item.path}")
-            with Image.open(item.path) as opened_image:
-                original = opened_image.convert("RGB")
+                raise FileNotFoundError(
+                    "Input image was not found: "
+                    f"{item.path}"
+                )
+
+            with Image.open(
+                item.path
+            ) as opened_image:
+                original = opened_image.convert(
+                    "RGB"
+                )
 
             detection: Detection | None = None
-            crop_box: tuple[int, int, int, int] | None = None
+            crop_box: (
+                tuple[int, int, int, int] | None
+            ) = None
             classifier_image = original
+
             if detector is not None:
                 result = detector.predict(
                     source=str(item.path),
-                    conf=float(yolo_config.get("confidence_threshold", 0.25)),
+                    conf=float(
+                        yolo_config.get(
+                            "confidence_threshold",
+                            0.25,
+                        )
+                    ),
                     device=args.yolo_device,
                     verbose=False,
                 )[0]
-                detection = select_largest_target_animal(detections_from_result(result))
+
+                detection = (
+                    select_largest_target_animal(
+                        detections_from_result(
+                            result
+                        )
+                    )
+                )
+
                 if detection is not None:
-                    if bool(yolo_config.get("square_crop", True)):
-                        crop_box = padded_square_crop_box(
-                            detection,
-                            original.width,
-                            original.height,
-                            float(yolo_config.get("padding_fraction", 0.10)),
+                    if bool(
+                        yolo_config.get(
+                            "square_crop",
+                            True,
+                        )
+                    ):
+                        crop_box = (
+                            padded_square_crop_box(
+                                detection,
+                                original.width,
+                                original.height,
+                                float(
+                                    yolo_config.get(
+                                        "padding_fraction",
+                                        0.10,
+                                    )
+                                ),
+                            )
                         )
                     else:
                         crop_box = clamp_crop_box(
@@ -441,60 +780,146 @@ def main() -> None:
                         )
 
                 if crop_box is None:
-                    artifact_stem = safe_stem(index, item.relative_name)
-                    panel_path = output_dir / f"{artifact_stem}_panel.png"
+                    artifact_stem = safe_stem(
+                        index,
+                        item.relative_name,
+                    )
+
+                    panel_path = (
+                        output_dir
+                        / f"{artifact_stem}_panel.png"
+                    )
+
                     save_detector_reject_panel(
                         panel_path,
                         original,
-                        "YOLO found no valid cat/dog crop; pipeline decision: reject",
+                        (
+                            "YOLO found no valid cat/dog "
+                            "crop; pipeline decision: reject"
+                        ),
                     )
+
                     records.append(
                         {
-                            "filename": item.relative_name,
-                            "status": "detector_reject",
-                            "true_label": item.true_external_label,
-                            "predicted_label": REJECT_EXTERNAL,
-                            "panel": str(panel_path),
+                            "filename": (
+                                item.relative_name
+                            ),
+                            "status": (
+                                "detector_reject"
+                            ),
+                            "true_label": (
+                                item.true_external_label
+                            ),
+                            "predicted_label": (
+                                REJECT_EXTERNAL
+                            ),
+                            "panel": str(
+                                panel_path
+                            ),
                         }
                     )
                     continue
-                classifier_image = original.crop(crop_box)
 
-            display_image, input_tensor = prepare_model_input(
-                classifier_image, image_size
+                classifier_image = original.crop(
+                    crop_box
+                )
+
+            display_image, input_tensor = (
+                prepare_model_input(
+                    classifier_image,
+                    image_size,
+                )
             )
+
             requested_target = parse_target_class(
                 args.target_class,
                 item.true_external_label,
             )
+
             gradcam_result = explainer.generate(
-                input_tensor.unsqueeze(0).to(device),
+                input_tensor.unsqueeze(0).to(
+                    device
+                ),
                 requested_target,
             )
-            raw_prediction = gradcam_result.predicted_class
-            confidence = float(gradcam_result.probabilities[raw_prediction].item())
+
+            raw_prediction = (
+                gradcam_result.predicted_class
+            )
+
+            confidence = float(
+                gradcam_result.probabilities[
+                    raw_prediction
+                ].item()
+            )
+
             final_prediction = (
-                REJECT_INTERNAL if confidence < confidence_threshold else raw_prediction
+                REJECT_INTERNAL
+                if confidence
+                < confidence_threshold
+                else raw_prediction
             )
 
             heatmap_image = colorize_heatmap(
                 gradcam_result.heatmap,
                 display_image.size,
             )
-            overlay_image = Image.blend(display_image, heatmap_image, alpha=args.alpha)
-            artifact_stem = safe_stem(index, item.relative_name)
-            heatmap_path = output_dir / f"{artifact_stem}_heatmap.png"
-            overlay_path = output_dir / f"{artifact_stem}_overlay.png"
-            panel_path = output_dir / f"{artifact_stem}_panel.png"
-            metadata_path = output_dir / f"{artifact_stem}_metadata.json"
-            heatmap_image.save(heatmap_path)
-            overlay_image.save(overlay_path)
+
+            overlay_image = overlay_heatmap(
+                display_image,
+                gradcam_result.heatmap,
+                alpha=args.alpha,
+            )
+
+            artifact_stem = safe_stem(
+                index,
+                item.relative_name,
+            )
+
+            heatmap_path = (
+                output_dir
+                / f"{artifact_stem}_heatmap.png"
+            )
+            heatmap_values_path = (
+                output_dir
+                / f"{artifact_stem}_heatmap.npy"
+            )
+            overlay_path = (
+                output_dir
+                / f"{artifact_stem}_overlay.png"
+            )
+            panel_path = (
+                output_dir
+                / f"{artifact_stem}_panel.png"
+            )
+            metadata_path = (
+                output_dir
+                / f"{artifact_stem}_metadata.json"
+            )
+
+            heatmap_image.save(
+                heatmap_path
+            )
+
+            np.save(
+                heatmap_values_path,
+                gradcam_result.heatmap.numpy(),
+            )
+
+            overlay_image.save(
+                overlay_path
+            )
 
             title = (
-                f"Raw prediction: {class_name(raw_prediction)} ({confidence:.3f}) | "
-                f"final: {class_name(final_prediction)} | "
-                f"Grad-CAM target: {class_name(gradcam_result.target_class)}"
+                "Raw prediction: "
+                f"{class_name(raw_prediction)} "
+                f"({confidence:.3f}) | "
+                "final: "
+                f"{class_name(final_prediction)} | "
+                "Grad-CAM target: "
+                f"{class_name(gradcam_result.target_class)}"
             )
+
             save_explanation_panel(
                 panel_path,
                 original,
@@ -508,52 +933,145 @@ def main() -> None:
             metadata = {
                 "filename": item.relative_name,
                 "source_path": str(item.path),
-                "checkpoint": str(checkpoint_path),
-                "checkpoint_epoch": checkpoint.get("epoch"),
-                "target_layer": args.target_layer,
-                "target_internal_label": gradcam_result.target_class,
-                "target_external_label": internal_to_external(
+                "checkpoint": str(
+                    checkpoint_path
+                ),
+                "checkpoint_epoch": (
+                    checkpoint.get("epoch")
+                ),
+                "target_layer": (
+                    args.target_layer
+                ),
+                "target_internal_label": (
                     gradcam_result.target_class
                 ),
-                "target_class_name": class_name(gradcam_result.target_class),
-                "raw_prediction_internal": raw_prediction,
-                "raw_prediction_external": internal_to_external(raw_prediction),
-                "raw_prediction_class_name": class_name(raw_prediction),
+                "target_external_label": (
+                    internal_to_external(
+                        gradcam_result.target_class
+                    )
+                ),
+                "target_class_name": (
+                    class_name(
+                        gradcam_result.target_class
+                    )
+                ),
+                "raw_prediction_internal": (
+                    raw_prediction
+                ),
+                "raw_prediction_external": (
+                    internal_to_external(
+                        raw_prediction
+                    )
+                ),
+                "raw_prediction_class_name": (
+                    class_name(raw_prediction)
+                ),
                 "confidence": confidence,
-                "confidence_threshold": confidence_threshold,
-                "final_prediction_external": internal_to_external(final_prediction),
-                "final_prediction_class_name": class_name(final_prediction),
-                "true_external_label": item.true_external_label,
-                "yolo_enabled": detector is not None,
-                "yolo_detected": detection is not None,
-                "yolo_confidence": detection.confidence
-                if detection is not None
-                else None,
-                "crop_box": list(crop_box) if crop_box is not None else None,
-                "heatmap": str(heatmap_path),
-                "overlay": str(overlay_path),
-                "panel": str(panel_path),
+                "confidence_threshold": (
+                    confidence_threshold
+                ),
+                "final_prediction_external": (
+                    internal_to_external(
+                        final_prediction
+                    )
+                ),
+                "final_prediction_class_name": (
+                    class_name(
+                        final_prediction
+                    )
+                ),
+                "true_external_label": (
+                    item.true_external_label
+                ),
+                "yolo_enabled": (
+                    detector is not None
+                ),
+                "yolo_detected": (
+                    detection is not None
+                ),
+                "yolo_confidence": (
+                    detection.confidence
+                    if detection is not None
+                    else None
+                ),
+                "crop_box": (
+                    list(crop_box)
+                    if crop_box is not None
+                    else None
+                ),
+                "heatmap": str(
+                    heatmap_path
+                ),
+                "heatmap_values": str(
+                    heatmap_values_path
+                ),
+                "overlay": str(
+                    overlay_path
+                ),
+                "panel": str(
+                    panel_path
+                ),
             }
-            metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-            records.append({"status": "explained", **metadata})
+
+            metadata_path.write_text(
+                json.dumps(
+                    metadata,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+            records.append(
+                {
+                    "status": "explained",
+                    **metadata,
+                }
+            )
 
     summary = {
         "config": str(config_path),
-        "checkpoint": str(checkpoint_path),
+        "checkpoint": str(
+            checkpoint_path
+        ),
         "device": str(device),
-        "target_layer": args.target_layer,
-        "target_class_request": args.target_class,
+        "target_layer": (
+            args.target_layer
+        ),
+        "target_class_request": (
+            args.target_class
+        ),
         "images_requested": len(items),
-        "images_explained": sum(record["status"] == "explained" for record in records),
+        "images_explained": sum(
+            record["status"] == "explained"
+            for record in records
+        ),
         "detector_rejects": sum(
-            record["status"] == "detector_reject" for record in records
+            record["status"] == "detector_reject"
+            for record in records
         ),
         "records": records,
     }
-    summary_path = output_dir / "summary.json"
-    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    print(f"Grad-CAM outputs: {output_dir.resolve()}")
-    print(f"Summary: {summary_path.resolve()}")
+
+    summary_path = (
+        output_dir / "summary.json"
+    )
+
+    summary_path.write_text(
+        json.dumps(
+            summary,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    print(
+        f"Grad-CAM outputs: "
+        f"{output_dir.resolve()}"
+    )
+    print(
+        f"Summary: "
+        f"{summary_path.resolve()}"
+    )
 
 
 if __name__ == "__main__":
