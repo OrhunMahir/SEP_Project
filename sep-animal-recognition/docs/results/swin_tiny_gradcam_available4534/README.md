@@ -7,6 +7,13 @@ available on the cluster, using one stratified training/validation split.
 > **Dataset scope:** the original manifest contains 5,432 rows, but 898 source
 > images were unavailable. These results therefore must not be compared
 > directly with runs trained on the complete dataset.
+>
+> > **Legacy visualization warning:** the Grad-CAM panels in this historical
+> report were generated with `last_block_norm1`. A later attribution audit on
+> all 143 official-test images found a systematic outer-ring artifact at that
+> layer. These panels are retained for reproducibility, but they should not be
+> interpreted as reliable localization evidence. New Grad-CAM outputs use the
+> audited `stage3_last_norm1` layer.
 
 ![Abyssinian Grad-CAM example](panels/yolo/00_abyssinian.png)
 
@@ -64,10 +71,12 @@ matrix CSV files in this directory.
 
 ## Grad-CAM method
 
-Grad-CAM targets `norm1` in the final Swin transformer block
-(`last_block_norm1`). Torchvision Swin activations are channels-last
-(`[batch, height, width, channels]`), so gradients are averaged over the two
-spatial dimensions.
+These historical panels target `norm1` in the final Swin transformer block
+(`last_block_norm1`). This layer is no longer the project default. The
+attribution audit selected `stage3_last_norm1`, whose 14 × 14 maps did not show
+the final stage's severe outer-ring artifact. Torchvision Swin activations are
+channels-last (`[batch, height, width, channels]`), so gradients are averaged
+over the two spatial dimensions.
 
 One validation image was selected for each of the 20 animal classes. Each panel
 shows the original image, the detector crop, the exact model input, the
@@ -136,7 +145,9 @@ input. This separates detector-gate failures from classifier failures.
 - Grad-CAM is a coarse localization diagnostic, not a causal explanation.
 - The raw-image fallback panels are an ablation and do not represent the normal
   YOLO-gated inference path.
-
+- The displayed panels use the legacy edge-biased target layer and must be
+  regenerated with `stage3_last_norm1` before drawing localization conclusions.
+  
 ## Reproduction
 
 See the main [Swin-Tiny Grad-CAM guide](../../gradcam_swin.md) for local and
