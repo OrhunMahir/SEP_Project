@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run YOLO-gated Swin-Tiny inference on the validation split."""
+"""Run YOLO-crop Swin-Tiny inference on the validation split with raw fallback."""
 
 from __future__ import annotations
 
@@ -216,6 +216,28 @@ def write_confusion_plot(path: Path, matrix: list[list[int]], title: str) -> Non
     plt.close(fig)
 
 
+def classify_image(
+    model: nn.Module,
+    image: Image.Image,
+    transform: transforms.Compose,
+    device: torch.device,
+    threshold: float,
+) -> tuple[int, int, float]:
+    """Classify one image and apply only the classifier confidence threshold."""
+    tensor = transform(image).unsqueeze(0).to(device)
+    with torch.no_grad():
+        logits = model(tensor)
+        probabilities = torch.softmax(logits, dim=1)
+        confidence_tensor, prediction_tensor = torch.max(probabilities, dim=1)
+    confidence = float(confidence_tensor.item())
+    raw_internal_prediction = int(prediction_tensor.item())
+    if confidence < threshold:
+        predicted_internal = REJECT_INTERNAL
+    else:
+        predicted_internal = raw_internal_prediction
+    return predicted_internal, internal_to_external(predicted_internal), confidence
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
@@ -291,7 +313,7 @@ def main() -> None:
         from ultralytics import YOLO
     except ImportError as error:
         raise RuntimeError(
-            "Ultralytics is required for YOLO-gated Swin inference. "
+            "Ultralytics is required for YOLO-crop Swin inference. "
             "Install requirements-yolo.txt first."
         ) from error
 
@@ -328,38 +350,25 @@ def main() -> None:
         )[0]
         detection = select_largest_target_animal(detections_from_result(result))
 
-        if detection is None:
-            predicted_external = REJECT_EXTERNAL
-            predicted_internal = REJECT_INTERNAL
-            confidence = 0.0
-            yolo_detected = False
-        else:
+        yolo_detected = detection is not None
+        classifier_image = image
+        if detection is not None:
             crop_box = padded_square_crop_box(
                 detection,
                 image_width=image.width,
                 image_height=image.height,
                 padding_fraction=padding_fraction,
             )
-            if crop_box is None:
-                predicted_external = REJECT_EXTERNAL
-                predicted_internal = REJECT_INTERNAL
-                confidence = 0.0
-                yolo_detected = False
-            else:
-                cropped_image = image.crop(crop_box)
-                tensor = transform(cropped_image).unsqueeze(0).to(device)
-                with torch.no_grad():
-                    logits = model(tensor)
-                    probabilities = torch.softmax(logits, dim=1)
-                    confidence_tensor, prediction_tensor = torch.max(probabilities, dim=1)
-                confidence = float(confidence_tensor.item())
-                raw_internal_prediction = int(prediction_tensor.item())
-                if confidence < swin_threshold:
-                    predicted_internal = REJECT_INTERNAL
-                else:
-                    predicted_internal = raw_internal_prediction
-                predicted_external = internal_to_external(predicted_internal)
-                yolo_detected = True
+            if crop_box is not None:
+                classifier_image = image.crop(crop_box)
+
+        predicted_internal, predicted_external, confidence = classify_image(
+            model=model,
+            image=classifier_image,
+            transform=transform,
+            device=device,
+            threshold=swin_threshold,
+        )
 
         true_internal_labels.append(true_internal)
         predicted_internal_labels.append(predicted_internal)
@@ -391,7 +400,7 @@ def main() -> None:
     write_confusion_plot(
         confusion_plot,
         matrix_list,
-        f"YOLO-gated Swin-Tiny pretrained, tau={swin_threshold:.2f}",
+        f"YOLO-crop Swin-Tiny pretrained with raw fallback, tau={swin_threshold:.2f}",
     )
 
     accuracy = accuracy_score(true_internal_labels, predicted_internal_labels)
