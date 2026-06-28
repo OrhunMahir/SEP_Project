@@ -85,7 +85,7 @@ def evaluate_model(
         labels = labels.to(device, non_blocking=True)
         logits = model(images)
         loss = criterion(logits, labels)
-            total_loss += float(loss.item()) * images.size(0)
+        total_loss += float(loss.item()) * images.size(0)
         total_examples += images.size(0)
         targets.extend(labels.cpu().tolist())
         predictions.extend(logits.argmax(dim=1).cpu().tolist())
