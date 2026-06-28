@@ -26,12 +26,27 @@ def unwrap_swin(model: nn.Module) -> nn.Module:
 
 def resolve_swin_target_layer(
     model: nn.Module,
-    target_layer: str = "last_block_norm1",
+    target_layer: str = "stage3_last_norm1",
 ) -> nn.Module:
     """Resolve a supported channels-last Swin layer for Grad-CAM."""
     swin = unwrap_swin(model)
+
     if target_layer == "final_norm":
         layer = getattr(swin, "norm", None)
+
+    elif target_layer == "stage3_last_norm1":
+        try:
+            # The third Swin stage produces a 14x14 feature map for a
+            # 224x224 input. This gives more reliable spatial explanations
+            # than the final stage's coarse and edge-biased 7x7 feature map.
+            stage3_last_block = swin.features[5][-1]
+        except (AttributeError, IndexError, TypeError) as error:
+            raise ValueError(
+                "Could not locate the third Swin transformer stage."
+            ) from error
+
+        layer = getattr(stage3_last_block, "norm1", None)
+
     elif target_layer in {"last_block_norm1", "last_block_norm2"}:
         try:
             last_block = swin.features[-1][-1]
@@ -39,15 +54,22 @@ def resolve_swin_target_layer(
             raise ValueError(
                 "Could not locate the final Swin transformer block."
             ) from error
-        layer = getattr(last_block, target_layer.removeprefix("last_block_"), None)
+
+        layer = getattr(
+            last_block,
+            target_layer.removeprefix("last_block_"),
+            None,
+        )
+
     else:
         raise ValueError(
-            "Unsupported target layer. Choose last_block_norm1, "
-            "last_block_norm2, or final_norm."
+            "Unsupported target layer. Choose stage3_last_norm1, "
+            "last_block_norm1, last_block_norm2, or final_norm."
         )
 
     if not isinstance(layer, nn.Module):
         raise ValueError(f"Could not resolve Swin target layer: {target_layer}")
+
     return layer
 
 
@@ -58,7 +80,9 @@ class SwinGradCAM:
         self.model = model
         self.model.eval()
         self._activations: torch.Tensor | None = None
-        self._hook = target_layer.register_forward_hook(self._capture_activations)
+        self._hook = target_layer.register_forward_hook(
+            self._capture_activations
+        )
 
     def _capture_activations(
         self,
@@ -71,6 +95,7 @@ class SwinGradCAM:
                 "The selected Swin target layer must return a four-dimensional "
                 "channels-last tensor [batch, height, width, channels]."
             )
+
         self._activations = output
 
     def close(self) -> None:
@@ -97,22 +122,30 @@ class SwinGradCAM:
         self._activations = None
         self.model.zero_grad(set_to_none=True)
 
+        # Input gradients keep activation gradients available even when model
+        # parameters have been frozen for inference.
         model_input = input_tensor.detach().requires_grad_(True)
         logits = self.model(model_input)
+
         if logits.ndim != 2 or logits.shape[0] != 1:
             raise ValueError(
                 "The classifier must return logits with shape [1, num_classes]."
             )
+
         if self._activations is None:
             raise RuntimeError(
                 "The target layer did not run during the model forward pass."
             )
 
         predicted_class = int(logits.argmax(dim=1).item())
-        selected_class = predicted_class if target_class is None else int(target_class)
+        selected_class = (
+            predicted_class if target_class is None else int(target_class)
+        )
+
         if not 0 <= selected_class < logits.shape[1]:
             raise ValueError(
-                f"Target class {selected_class} is outside [0, {logits.shape[1] - 1}]."
+                f"Target class {selected_class} is outside "
+                f"[0, {logits.shape[1] - 1}]."
             )
 
         gradients = torch.autograd.grad(
@@ -121,12 +154,20 @@ class SwinGradCAM:
             retain_graph=False,
             create_graph=False,
         )[0]
+
         activations = self._activations
         if activations.shape != gradients.shape:
-            raise RuntimeError("Activation and gradient shapes differ unexpectedly.")
+            raise RuntimeError(
+                "Activation and gradient shapes differ unexpectedly."
+            )
 
+        # torchvision Swin stores activations channels-last:
+        # [batch, height, width, channels].
         channel_weights = gradients.mean(dim=(1, 2), keepdim=True)
-        heatmap = torch.relu((channel_weights * activations).sum(dim=-1))[0]
+        heatmap = torch.relu(
+            (channel_weights * activations).sum(dim=-1)
+        )[0]
+
         maximum = heatmap.max()
         if torch.isfinite(maximum) and float(maximum.detach().item()) > 0.0:
             heatmap = heatmap / maximum
