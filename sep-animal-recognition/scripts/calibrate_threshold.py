@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from animal_recognition.data import ManifestDataset, evaluation_transform, load_split
 from animal_recognition.metrics import (
     classification_metrics,
+    per_class_metrics,
     write_confusion_matrix_csv,
     write_confusion_matrix_png,
 )
@@ -97,7 +98,7 @@ def selection_rule_text(selection_metric: str) -> str:
     return "macro_f1, then reject_f1, accuracy, false_accepts, false_rejects"
 
 
-def write_csv(path: Path, records: list[dict[str, float | int]]) -> None:
+def write_csv(path: Path, records: list[dict[str, float | int | str]]) -> None:
     """Write sweep rows in a format that can be opened in a spreadsheet."""
     fieldnames = list(records[0])
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -215,6 +216,18 @@ def main() -> None:
         best_predictions.tolist(),
         f"Confusion Matrix: best threshold tau={float(best_record['threshold']):.2f}",
     )
+    baseline_per_class = per_class_metrics(target_list, baseline_predictions.tolist())
+    best_per_class = per_class_metrics(target_list, best_predictions.tolist())
+    write_csv(calibration_dir / "per_class_metrics_baseline.csv", baseline_per_class)
+    write_csv(calibration_dir / "per_class_metrics_best_threshold.csv", best_per_class)
+    (calibration_dir / "per_class_metrics_baseline.json").write_text(
+        json.dumps(baseline_per_class, indent=2),
+        encoding="utf-8",
+    )
+    (calibration_dir / "per_class_metrics_best_threshold.json").write_text(
+        json.dumps(best_per_class, indent=2),
+        encoding="utf-8",
+    )
     result = {
         "checkpoint": str(checkpoint_path),
         "checkpoint_epoch": int(checkpoint["epoch"]),
@@ -230,6 +243,13 @@ def main() -> None:
             "best_threshold_csv": str(calibration_dir / "confusion_matrix_best_threshold.csv"),
             "best_threshold_png": str(calibration_dir / "confusion_matrix_best_threshold.png"),
         },
+        "per_class_metrics_files": {
+            "baseline_csv": str(calibration_dir / "per_class_metrics_baseline.csv"),
+            "baseline_json": str(calibration_dir / "per_class_metrics_baseline.json"),
+            "best_threshold_csv": str(calibration_dir / "per_class_metrics_best_threshold.csv"),
+            "best_threshold_json": str(calibration_dir / "per_class_metrics_best_threshold.json"),
+        },
+        "best_threshold_per_class_metrics": best_per_class,
         "candidates": records,
     }
     (calibration_dir / "threshold_summary.json").write_text(
