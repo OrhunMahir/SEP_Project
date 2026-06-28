@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from animal_recognition.data import ManifestDataset, evaluation_transform, load_split
 from animal_recognition.metrics import (
     classification_metrics,
+    per_class_metrics,
     write_confusion_matrix_csv,
     write_confusion_matrix_png,
 )
@@ -195,7 +196,7 @@ def collect_validation_probabilities(
     )
 
 
-def write_csv(path: Path, records: list[dict[str, float | int]]) -> None:
+def write_csv(path: Path, records: list[dict[str, float | int | str]]) -> None:
     """Write sweep rows in a format that can be opened in a spreadsheet."""
     fieldnames = list(records[0])
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -343,6 +344,12 @@ def main() -> None:
             f"tau={float(best_record['threshold']):.2f}"
         ),
     )
+    best_per_class = per_class_metrics(target_list, best_predictions.tolist())
+    write_csv(output_dir / "per_class_metrics_best_ensemble.csv", best_per_class)
+    (output_dir / "per_class_metrics_best_ensemble.json").write_text(
+        json.dumps(best_per_class, indent=2),
+        encoding="utf-8",
+    )
     result = {
         "device": str(device),
         "selection_metric": args.selection_metric,
@@ -365,6 +372,11 @@ def main() -> None:
             "best_ensemble_csv": str(output_dir / "confusion_matrix_best_ensemble.csv"),
             "best_ensemble_png": str(output_dir / "confusion_matrix_best_ensemble.png"),
         },
+        "per_class_metrics_files": {
+            "best_ensemble_csv": str(output_dir / "per_class_metrics_best_ensemble.csv"),
+            "best_ensemble_json": str(output_dir / "per_class_metrics_best_ensemble.json"),
+        },
+        "best_ensemble_per_class_metrics": best_per_class,
         "candidates": records,
     }
     if len(args.config) == 2:
