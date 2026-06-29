@@ -31,7 +31,7 @@ def set_warmup_cosine_learning_rate(
     max_epochs: int,
 ) -> float:
     """Apply linear warm-up followed by cosine decay and return the active rate."""
-    # İlk birkaç epoch'ta öğrenme oranını yavaşça artırıp eğitimi daha kararlı başlatıyorum.
+    # Warm up the learning rate before cosine decay for more stable early training.
     if epoch_index < warmup_epochs:
         multiplier = (epoch_index + 1) / warmup_epochs
     else:

@@ -60,7 +60,7 @@ class CustomCNN(nn.Module):
         if num_outputs != NUM_OUTPUTS:
             raise ValueError(f"CustomCNN requires {NUM_OUTPUTS} outputs, received {num_outputs}.")
 
-        # Bu dosyada rapordaki 32→64→128→256 kanallı dört bloğu aynen kuruyorum.
+        # Match the four-block 32-64-128-256 channel layout described in the report.
         self.features = nn.Sequential(
             ConvBNReLUPool(3, 32),
             ConvBNReLUPool(32, 64),

@@ -16,7 +16,7 @@ from torchvision import transforms
 
 from .constants import REJECT_INTERNAL, external_to_internal
 
-# Bu dosyada train ve validation verisini aynı kurallarla hazırlıyorum.
+# Shared ImageNet normalization used by training, validation, and inference transforms.
 NORMALIZE_MEAN = (0.485, 0.456, 0.406)
 NORMALIZE_STD = (0.229, 0.224, 0.225)
 
@@ -142,7 +142,7 @@ class BalancedEpochSampler(Sampler[int]):
         if set(self.indices_by_label) != expected_labels:
             raise ValueError("Balanced sampling requires all 21 classes in the training split.")
 
-        # Reject sınıfının baskınlaşmaması için her sınıftan eşit sayıda örnek alıyorum.
+        # Limit each class to the smallest class count so reject examples do not dominate an epoch.
         self.samples_per_class = min(len(indices) for indices in self.indices_by_label.values())
         self.seed = seed
         self.epoch = 0

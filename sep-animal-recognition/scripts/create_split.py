@@ -22,7 +22,7 @@ def main() -> None:
     if not 0 < args.validation_fraction < 1:
         raise ValueError("validation-fraction must be between 0 and 1.")
 
-    # Bu dosyada her sınıfın iki split'te de temsil edilmesini garanti ediyorum.
+    # Keep every class represented in both train and validation splits.
     with args.manifest.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     by_label: dict[int, list[dict[str, str]]] = defaultdict(list)
@@ -38,14 +38,14 @@ def main() -> None:
         group = by_label[label].copy()
         rng.shuffle(group)
 
-        # Her sınıfın yaklaşık %20'sini validation'a ayırıyorum.
+        # Assign approximately 20% of each class to validation.
         validation_size = round(len(group) * args.validation_fraction)
         validation_size = min(max(validation_size, 1), len(group) - 1)
         validation_rows.extend(group[:validation_size])
         train_rows.extend(group[validation_size:])
         validation_counts[label] = validation_size
 
-    # Bu CSV'ler tüm modellerde aynı kalacak; böylece karşılaştırma adil olacaktır.
+    # Reuse the same split files across all models for fair comparison.
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for filename, split_rows in (("train_seed42.csv", train_rows), ("val_seed42.csv", validation_rows)):
         with (args.output_dir / filename).open("w", newline="", encoding="utf-8") as handle:

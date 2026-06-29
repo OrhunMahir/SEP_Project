@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-# Bu kısa jobda mevcut checkpoint'i eğitmeden validation üzerinde tarıyorum.
+# Sweep validation thresholds from an existing checkpoint without retraining.
 cd "$HOME/projects/SEP_Project_code/sep-animal-recognition"
 source .venv/bin/activate
 export PYTHONPATH="$PWD/src"

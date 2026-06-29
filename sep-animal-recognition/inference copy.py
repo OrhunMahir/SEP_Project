@@ -1,28 +1,5 @@
-# Review notes before changing the baseline:
-#
-# - This file is still the original evaluation wrapper with a random placeholder
-#   model. The trained CustomCNN is not loaded here yet, so running this script
-#   would not evaluate the baseline we trained.
-# - The filename should probably be changed back to `inference.py` for the final
-#   hand-in, unless the provided course script is kept separately and this file is
-#   only a local copy.
-# - The model checkpoint path, preprocessing transform, and internal reject label
-#   conversion still need to be wired into `Model.forward`.
-# - The training code uses internal label 20 for reject and converts it back to
-#   -1 elsewhere. Inference must do the same conversion before returning a value.
-# - Some split rows currently look suspicious: a few `reject_stanford__...`
-#   examples include target dog breeds such as beagle, pug, boxer, and Samoyed
-#   but are labeled as -1. These should be checked before trusting reject metrics.
-# - `configs/data_paths.json` contains local machine paths. That is fine for a
-#   quick run, but final code should use documented arguments or project-relative
-#   paths so another machine can reproduce the results.
-# - No trained weights or baseline summary files are present in `runs/` in the
-#   current checkout. Before submission, keep the selected checkpoint and the
-#   validation history together with the code.
-# - The current metrics are useful for model selection, but the final report will
-#   also need per-class precision, recall, and F1 tables, not just the aggregate
-#   macro/weighted scores.
-#
+# Local copy of the course evaluation harness. The final ensemble evaluation
+# pipeline is implemented in scripts/evaluate_official_ensemble.py.
 """Evaluation harness for the Fine-grained Animal Recognition project.
 
 We run this script on the held-out test set, so do not change the interface.
@@ -84,7 +61,7 @@ NUM_CLASSES = len(CLASSES)
 
 
 class Model(nn.Module):
-    """TODO (students): replace this with your own model.
+    """Placeholder model matching the course inference contract.
 
     Contract: given a PIL image, return a class index in {-1, 0, ..., 19}.
     The placeholder below is a uniform random guesser so the script runs.
