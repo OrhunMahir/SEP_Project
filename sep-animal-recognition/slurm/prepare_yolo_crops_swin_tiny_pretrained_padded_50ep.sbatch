@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-cd "$HOME/projects/SEP_Project_code/sep-animal-recognition"
+cd "${SLURM_SUBMIT_DIR:?Submit this job from the sep-animal-recognition directory.}"
 source .venv/bin/activate
 export PYTHONPATH="$PWD/src"
 
