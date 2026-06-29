@@ -1,0 +1,222 @@
+[
+  {
+    "class_index": 0,
+    "class_name": "Abyssinian",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Abyssinian/oxford__Abyssinian_219.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/00_abyssinian_gradcam.png",
+    "target_confidence": 0.9969602227210999,
+    "predicted_index": 0,
+    "predicted_name": "Abyssinian",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 1,
+    "class_name": "Bengal",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Bengal/oxford__Bengal_111.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/01_bengal_gradcam.png",
+    "target_confidence": 0.9995658993721008,
+    "predicted_index": 1,
+    "predicted_name": "Bengal",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 2,
+    "class_name": "Birman",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Birman/oxford__Birman_7 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/02_birman_gradcam.png",
+    "target_confidence": 0.9826661348342896,
+    "predicted_index": 2,
+    "predicted_name": "Birman",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 3,
+    "class_name": "Bombay",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Bombay/oxford__Bombay_53 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/03_bombay_gradcam.png",
+    "target_confidence": 0.997952938079834,
+    "predicted_index": 3,
+    "predicted_name": "Bombay",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 4,
+    "class_name": "British_Shorthair",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/British_Shorthair/oxford__British_Shorthair_109 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/04_british_shorthair_gradcam.png",
+    "target_confidence": 0.9997403025627136,
+    "predicted_index": 4,
+    "predicted_name": "British_Shorthair",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 5,
+    "class_name": "Maine_Coon",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Maine_Coon/oxford__Maine_Coon_58 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/05_maine_coon_gradcam.png",
+    "target_confidence": 0.9981710910797119,
+    "predicted_index": 5,
+    "predicted_name": "Maine_Coon",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 6,
+    "class_name": "Ragdoll",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Ragdoll/oxford__Ragdoll_194 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/06_ragdoll_gradcam.png",
+    "target_confidence": 0.9785488247871399,
+    "predicted_index": 6,
+    "predicted_name": "Ragdoll",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 7,
+    "class_name": "Sphynx",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Sphynx/oxford__Sphynx_103 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/07_sphynx_gradcam.png",
+    "target_confidence": 0.999913215637207,
+    "predicted_index": 7,
+    "predicted_name": "Sphynx",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 8,
+    "class_name": "Tabby",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Tabby/wikimedia__0145.JPG",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/08_tabby_gradcam.png",
+    "target_confidence": 0.9970575571060181,
+    "predicted_index": 8,
+    "predicted_name": "Tabby",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 9,
+    "class_name": "Tiger_Cat",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Tiger_Cat/wikimedia__0148.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/09_tiger_cat_gradcam.png",
+    "target_confidence": 0.9986371397972107,
+    "predicted_index": 9,
+    "predicted_name": "Tiger_Cat",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 10,
+    "class_name": "Beagle",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Beagle/oxford__beagle_109.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/10_beagle_gradcam.png",
+    "target_confidence": 0.9970731735229492,
+    "predicted_index": 10,
+    "predicted_name": "Beagle",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 11,
+    "class_name": "Pug",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Pug/oxford__pug_3 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/11_pug_gradcam.png",
+    "target_confidence": 0.9988406300544739,
+    "predicted_index": 11,
+    "predicted_name": "Pug",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 12,
+    "class_name": "Boxer",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Boxer/oxford__boxer_74 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/12_boxer_gradcam.png",
+    "target_confidence": 0.9989018440246582,
+    "predicted_index": 12,
+    "predicted_name": "Boxer",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 13,
+    "class_name": "Shiba_Inu",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Shiba_Inu/oxford__shiba_inu_36 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/13_shiba_inu_gradcam.png",
+    "target_confidence": 0.9994578957557678,
+    "predicted_index": 13,
+    "predicted_name": "Shiba_Inu",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 14,
+    "class_name": "Samoyed",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Samoyed/oxford__samoyed_180 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/14_samoyed_gradcam.png",
+    "target_confidence": 0.9991950392723083,
+    "predicted_index": 14,
+    "predicted_name": "Samoyed",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 15,
+    "class_name": "Golden_Retriever",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Golden_Retriever/stanford__n02099601-golden_retriever__n02099601_4651 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/15_golden_retriever_gradcam.png",
+    "target_confidence": 0.999222993850708,
+    "predicted_index": 15,
+    "predicted_name": "Golden_Retriever",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 16,
+    "class_name": "German_Shepherd",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/German_Shepherd/stanford__n02106662-German_shepherd__n02106662_1451 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/16_german_shepherd_gradcam.png",
+    "target_confidence": 0.9975239634513855,
+    "predicted_index": 16,
+    "predicted_name": "German_Shepherd",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 17,
+    "class_name": "Siberian_Husky",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Siberian_Husky/stanford__n02110185-Siberian_husky__n02110185_8860 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/17_siberian_husky_gradcam.png",
+    "target_confidence": 0.9981709718704224,
+    "predicted_index": 17,
+    "predicted_name": "Siberian_Husky",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 18,
+    "class_name": "Dalmatian",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Dalmatian/wikimedia__0007.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/18_dalmatian_gradcam.png",
+    "target_confidence": 0.9999028444290161,
+    "predicted_index": 18,
+    "predicted_name": "Dalmatian",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  },
+  {
+    "class_index": 19,
+    "class_name": "Rottweiler",
+    "source_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_dataset/all/Rottweiler/stanford__n02106550-Rottweiler__n02106550_7003 3.jpg",
+    "output_image": "/home/m/mahirogullari/projects/SEP_Project_code/gradcam_outputs/custom_cnn_final_100ep_folder_fallback/19_rottweiler_gradcam.png",
+    "target_confidence": 0.999294638633728,
+    "predicted_index": 19,
+    "predicted_name": "Rottweiler",
+    "correct_prediction": true,
+    "preprocess": "yolo-crop"
+  }
+]
