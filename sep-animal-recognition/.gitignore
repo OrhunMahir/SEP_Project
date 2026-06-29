@@ -13,3 +13,5 @@ runs/*/config.json
 slurm_logs/*.out
 slurm_logs/*.err
 !slurm_logs/.gitkeep
+docs/gradcam_outputs/**/*.out
+docs/gradcam_outputs/**/*.err

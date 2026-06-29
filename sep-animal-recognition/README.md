@@ -208,6 +208,10 @@ docs/internal_ensemble_per_class_metrics.md
 ### 5. Evaluate on the Instructor-Provided Labelled Evaluation Set
 
 The official image folder must contain a flat image directory and `labels.csv`.
+The repository also provides a course-style root `inference.py` with a `Model`
+class whose `forward` method accepts one PIL image and returns `-1` or one of
+the 20 class indices. By default it uses the `pretrained_50ep` ensemble; set
+`ANIMAL_RECOGNITION_PRESET=scratch_100ep` to use the scratch ensemble.
 
 ```bash
 python scripts/evaluate_official_ensemble.py \
@@ -230,6 +234,25 @@ The documented official evaluation results are in:
 ```text
 docs/official_test_set_results.md
 ```
+
+### 6. Generate Custom CNN Grad-CAM Visualizations
+
+Use the same checkpoint/config pair as the final Custom CNN model:
+
+```bash
+python gradcam_custom_cnn/generate_custom_cnn_gradcam.py \
+  --project-root /absolute/path/to/sep-animal-recognition \
+  --checkpoint runs/custom_cnn_yolo_crop_padded_medium_aug_100ep/best.pt \
+  --config configs/custom_cnn_yolo_crop_padded_medium_aug_100ep.json \
+  --dataset-root /absolute/path/to/dataset/all \
+  --labels-csv /absolute/path/to/dataset/labels.csv \
+  --output-dir gradcam_outputs/custom_cnn_final_100ep \
+  --preprocess yolo-crop
+```
+
+For folder-based datasets, omit `--labels-csv` and pass the class-folder root
+as `--dataset-root`. The script creates one Grad-CAM image per target breed and
+`gradcam_summary.json`; by default it skips the reject class.
 
 ## Report Artifacts
 

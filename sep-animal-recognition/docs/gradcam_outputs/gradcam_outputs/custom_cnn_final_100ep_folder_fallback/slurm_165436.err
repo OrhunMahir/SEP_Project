@@ -1,5 +1,0 @@
-slurmstepd-krater06: error: Unable to create TMPDIR [/tmp/user/24829]: Permission denied
-slurmstepd-krater06: error: Setting TMPDIR to /tmp
-Invalid SOS parameters for sequential JPEG
-Corrupt JPEG data: 1 extraneous bytes before marker 0xd4
-Corrupt JPEG data: premature end of data segment
