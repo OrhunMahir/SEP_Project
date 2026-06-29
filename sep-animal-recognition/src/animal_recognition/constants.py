@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-# Bu dosyada resmî sınıf sırasını tek bir yerde sabit tutuyorum.
+# Keep the official class order in one place for training and submission conversion.
 CLASSES = (
     "Abyssinian", "Bengal", "Birman", "Bombay", "British_Shorthair",
     "Maine_Coon", "Ragdoll", "Sphynx", "Tabby", "Tiger_Cat",
@@ -11,7 +11,7 @@ CLASSES = (
     "Dalmatian", "Rottweiler",
 )
 
-# Eğitimde -1 kullanamadığım için reject sınıfını geçici olarak output 20 yapıyorum.
+# The trainable reject output uses index 20, then converts back to external label -1.
 REJECT_EXTERNAL = -1
 REJECT_INTERNAL = len(CLASSES)
 NUM_OUTPUTS = len(CLASSES) + 1

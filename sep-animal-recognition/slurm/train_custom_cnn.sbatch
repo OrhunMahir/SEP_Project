@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-# Bu job dosyasında yalnız gerçek eğitimi Slurm'e teslim ediyorum.
+# Submit the training job to Slurm without changing local project files.
 cd "$HOME/projects/SEP_Project_code/sep-animal-recognition"
 source .venv/bin/activate
 export PYTHONPATH="$PWD/src"

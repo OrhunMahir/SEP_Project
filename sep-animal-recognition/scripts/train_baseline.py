@@ -101,7 +101,7 @@ def main() -> None:
     )
     sampler = BalancedEpochSampler(train_samples, seed=int(config["seed"]))
 
-    # Reject sınıfını dengelemek için sadece train loader'da balanced sampler kullanıyorum.
+    # Use balanced sampling only for training so the reject class does not dominate batches.
     train_loader = DataLoader(
         train_dataset,
         batch_size=int(data_config["batch_size"]),

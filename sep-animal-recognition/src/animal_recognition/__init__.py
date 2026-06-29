@@ -1,1 +1,1 @@
-"""Animal recognition projesinin tekrar kullanılabilir Python modülleri."""
+"""Reusable Python modules for the animal recognition project."""

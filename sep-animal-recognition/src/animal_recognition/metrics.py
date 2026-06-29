@@ -26,7 +26,7 @@ def classification_metrics(targets: Sequence[int], predictions: Sequence[int]) -
         targets, predictions, labels=[REJECT_INTERNAL], average=None, zero_division=0
     )
 
-    # Reject hatalarını ayrı sayarak modelin güvenlik davranışını görünür kılıyorum.
+    # Track reject-specific errors separately from the aggregate metrics.
     false_accepts = sum(true == REJECT_INTERNAL and predicted != REJECT_INTERNAL
                         for true, predicted in zip(targets, predictions, strict=True))
     false_rejects = sum(true != REJECT_INTERNAL and predicted == REJECT_INTERNAL

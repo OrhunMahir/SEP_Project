@@ -1,0 +1,9 @@
+numpy
+pandas
+pillow
+scikit-learn
+matplotlib
+tqdm
+torch
+torchvision
+ultralytics>=8.3,<9
