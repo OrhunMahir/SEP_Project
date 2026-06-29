@@ -1,21 +1,55 @@
 # Swin-Tiny + YOLO Grad-CAM Results
 
-This report documents the reproduced Swin-Tiny experiment and its Grad-CAM
-interpretability outputs. The experiment was run on the 4,534 images that were
-available on the cluster, using one stratified training/validation split.
+This report documents the reproduced Swin-Tiny experiment, the Grad-CAM
+visualization issue found during review, and the corrected `stage3_last_norm1`
+outputs. The model was trained on the 4,534 images that were available on the
+cluster, using one stratified training/validation split.
 
 > **Dataset scope:** the original manifest contains 5,432 rows, but 898 source
 > images were unavailable. These results therefore must not be compared
 > directly with runs trained on the complete dataset.
->
-> > **Legacy visualization warning:** the Grad-CAM panels in this historical
-> report were generated with `last_block_norm1`. A later attribution audit on
-> all 143 official-test images found a systematic outer-ring artifact at that
-> layer. These panels are retained for reproducibility, but they should not be
-> interpreted as reliable localization evidence. New Grad-CAM outputs use the
-> audited `stage3_last_norm1` layer.
 
-![Abyssinian Grad-CAM example](panels/yolo/00_abyssinian.png)
+![Corrected Abyssinian Grad-CAM example](panels/stage3/00_abyssinian.jpg)
+
+## What changed after the attribution audit
+
+The first Grad-CAM implementation used `last_block_norm1`, the `norm1` module
+inside the final Swin transformer block. Visual inspection showed suspicious
+maps: many heatmaps emphasized image borders or background regions instead of
+the animal. This was not a reversed-color problem. Red already represented high
+positive evidence. The issue was that the chosen final-stage Swin layer created
+a systematic outer-ring artifact for this checkpoint.
+
+We audited 143 official-test images with several attribution targets and a
+gradient-free occlusion check. The final-stage `last_block_norm1` setting was
+clearly the problematic one:
+
+| Attribution target | Spatial grid | Outer-ring peak rate | Mean outer-ring mass | Median edge/inner ratio |
+| --- | ---: | ---: | ---: | ---: |
+| `stage2_last_norm1` | 28x28 | 16.1% | 12.5% | 0.885 |
+| `stage3_last_norm1` | 14x14 | **23.1%** | **30.0%** | **1.103** |
+| `last_block_norm1` / final stage | 7x7 | 79.7% | 78.4% | 3.834 |
+| `last_block_norm2` | 7x7 | 9.1% | 14.9% | 0.118 |
+| `final_norm` | 7x7 | 7.7% | 29.4% | 0.424 |
+| Occlusion check | 7x7 | 41.7% | 52.4% | 1.239 |
+
+The project default was therefore changed from `last_block_norm1` to
+`stage3_last_norm1`. This target has a 14x14 grid for 224x224 inputs, keeps
+more spatial detail than the final 7x7 stage, and no longer shows the severe
+outer-ring failure. The visualization code was also updated to use a `turbo`
+colormap, activation-weighted overlays, and saved raw `*_heatmap.npy` arrays
+for later audits.
+
+The correction does **not** turn Grad-CAM into a perfect segmentation mask.
+Some corrected maps still highlight background, bedding, snow, crop edges, or
+other contextual cues. That observation is important: after the artifact was
+reduced, remaining background activations are more likely to reflect real model
+shortcut risk or coarse Grad-CAM localization limits rather than a simple
+plotting bug.
+
+Legacy panels generated with the old final-stage target are retained in
+`panels/yolo/` and `panels/raw_fallback/` only for reproducibility. The panels
+shown below use the corrected `stage3_last_norm1` target.
 
 ## Experiment setup
 
@@ -69,88 +103,98 @@ Machine-readable results are available in
 [`threshold_sweep.csv`](metrics/threshold_sweep.csv), and the two confusion
 matrix CSV files in this directory.
 
-## Grad-CAM method
+## Corrected Grad-CAM method
 
-These historical panels target `norm1` in the final Swin transformer block
-(`last_block_norm1`). This layer is no longer the project default. The
-attribution audit selected `stage3_last_norm1`, whose 14 × 14 maps did not show
-the final stage's severe outer-ring artifact. Torchvision Swin activations are
-channels-last (`[batch, height, width, channels]`), so gradients are averaged
-over the two spatial dimensions.
+The corrected Grad-CAM panels target `stage3_last_norm1`, the `norm1` module
+in the last block of Swin's third transformer stage. Torchvision Swin
+activations are channels-last (`[batch, height, width, channels]`), so channel
+weights are calculated by averaging gradients across the height and width
+dimensions.
 
 One validation image was selected for each of the 20 animal classes. Each panel
-shows the original image, the detector crop, the exact model input, the
-Grad-CAM heatmap, and the heatmap overlay. The explanation target is the
-classifier's predicted class.
+shows the original image, the YOLO crop when available, the exact classifier
+input, the Grad-CAM heatmap, and the activation-weighted overlay. The
+explanation target is the classifier's predicted class.
 
 - 20 class samples requested
-- 17 passed the YOLO gate and were explained normally
-- 3 were rejected by YOLO: Sphynx, Boxer, and Dalmatian
-- the 3 detector rejects were rerun as an explicit `--no-yolo` diagnostic
-- all 20 selected samples were classified correctly after using that diagnostic
-  fallback
+- 17 used the normal YOLO-crop path
+- 3 used raw fallback because YOLO missed the animal: Sphynx, Boxer, and
+  Dalmatian
+- all 20 selected samples were classified correctly
+- the sample is qualitative and deliberately balanced by class; it is not an
+  additional accuracy estimate
 
-The last point describes this deliberately selected qualitative sample and is
-not an additional accuracy estimate.
+## Corrected per-class Grad-CAM gallery
 
-## Per-class panels
-
-| ID | Class | Confidence | Normal pipeline |
-| ---: | --- | ---: | --- |
-| 0 | [Abyssinian](panels/yolo/00_abyssinian.png) | 0.8106 | YOLO explained |
-| 1 | [Bengal](panels/yolo/01_bengal.png) | 0.9207 | YOLO explained |
-| 2 | [Birman](panels/yolo/02_birman.png) | 0.9299 | YOLO explained |
-| 3 | [Bombay](panels/yolo/03_bombay.png) | 0.9223 | YOLO explained |
-| 4 | [British Shorthair](panels/yolo/04_british_shorthair.png) | 0.9292 | YOLO explained |
-| 5 | [Maine Coon](panels/yolo/05_maine_coon.png) | 0.9309 | YOLO explained |
-| 6 | [Ragdoll](panels/yolo/06_ragdoll.png) | 0.9217 | YOLO explained |
-| 7 | [Sphynx detector reject](panels/yolo/07_sphynx_detector_reject.png) | — | [Raw fallback: 0.9211](panels/raw_fallback/07_sphynx.png) |
-| 8 | [Tabby](panels/yolo/08_tabby.png) | 0.8843 | YOLO explained |
-| 9 | [Tiger Cat](panels/yolo/09_tiger_cat.png) | 0.9143 | YOLO explained |
-| 10 | [Beagle](panels/yolo/10_beagle.png) | 0.9303 | YOLO explained |
-| 11 | [Pug](panels/yolo/11_pug.png) | 0.9378 | YOLO explained |
-| 12 | [Boxer detector reject](panels/yolo/12_boxer_detector_reject.png) | — | [Raw fallback: 0.9313](panels/raw_fallback/12_boxer.png) |
-| 13 | [Shiba Inu](panels/yolo/13_shiba_inu.png) | 0.9108 | YOLO explained |
-| 14 | [Samoyed](panels/yolo/14_samoyed.png) | 0.9270 | YOLO explained |
-| 15 | [Golden Retriever](panels/yolo/15_golden_retriever.png) | 0.8525 | YOLO explained |
-| 16 | [German Shepherd](panels/yolo/16_german_shepherd.png) | 0.8843 | YOLO explained |
-| 17 | [Siberian Husky](panels/yolo/17_siberian_husky.png) | 0.9183 | YOLO explained |
-| 18 | [Dalmatian detector reject](panels/yolo/18_dalmatian_detector_reject.png) | — | [Raw fallback: 0.9246](panels/raw_fallback/18_dalmatian.png) |
-| 19 | [Rottweiler](panels/yolo/19_rottweiler.png) | 0.9162 | YOLO explained |
-
-The corresponding filenames and statuses are recorded in
-[`gradcam_samples.csv`](metrics/gradcam_samples.csv).
+| Class | Corrected `stage3_last_norm1` panel |
+| --- | --- |
+| Abyssinian | ![Abyssinian](panels/stage3/00_abyssinian.jpg) |
+| Bengal | ![Bengal](panels/stage3/01_bengal.jpg) |
+| Birman | ![Birman](panels/stage3/02_birman.jpg) |
+| Bombay | ![Bombay](panels/stage3/03_bombay.jpg) |
+| British Shorthair | ![British Shorthair](panels/stage3/04_british_shorthair.jpg) |
+| Maine Coon | ![Maine Coon](panels/stage3/05_maine_coon.jpg) |
+| Ragdoll | ![Ragdoll](panels/stage3/06_ragdoll.jpg) |
+| Sphynx, raw fallback | ![Sphynx raw fallback](panels/stage3/07_sphynx_raw_fallback.jpg) |
+| Tabby | ![Tabby](panels/stage3/08_tabby.jpg) |
+| Tiger Cat | ![Tiger Cat](panels/stage3/09_tiger_cat.jpg) |
+| Beagle | ![Beagle](panels/stage3/10_beagle.jpg) |
+| Pug | ![Pug](panels/stage3/11_pug.jpg) |
+| Boxer, raw fallback | ![Boxer raw fallback](panels/stage3/12_boxer_raw_fallback.jpg) |
+| Shiba Inu | ![Shiba Inu](panels/stage3/13_shiba_inu.jpg) |
+| Samoyed | ![Samoyed](panels/stage3/14_samoyed.jpg) |
+| Golden Retriever | ![Golden Retriever](panels/stage3/15_golden_retriever.jpg) |
+| German Shepherd | ![German Shepherd](panels/stage3/16_german_shepherd.jpg) |
+| Siberian Husky | ![Siberian Husky](panels/stage3/17_siberian_husky.jpg) |
+| Dalmatian, raw fallback | ![Dalmatian raw fallback](panels/stage3/18_dalmatian_raw_fallback.jpg) |
+| Rottweiler | ![Rottweiler](panels/stage3/19_rottweiler.jpg) |
 
 ## Qualitative observations
 
-The maps frequently emphasize animal silhouettes, coat regions, and
-breed-specific head or body features. Some panels also assign substantial
-importance to image borders or background regions. This may indicate context
-or acquisition-source shortcuts and should be investigated with a larger,
-randomly sampled explanation set and controlled background perturbations.
+The corrected maps are more plausible than the legacy final-stage maps: the
+dominant artifact is no longer an almost universal high-activation outer ring.
+Several panels emphasize animal heads, faces, fur texture, bodies, or
+breed-specific regions. However, some panels still place meaningful activation
+on context such as bedding, snow, background color, or crop boundaries. This is
+expected for a coarse class-discriminative method and may also reveal that the
+classifier learned dataset-specific context shortcuts.
 
-The three detector rejects are also important: the classifier predicts the
-correct breed with high confidence when run directly on each raw image, but the
-normal end-to-end pipeline cannot reach the classifier because YOLO rejects the
-input. This separates detector-gate failures from classifier failures.
+The raw-fallback examples are especially useful for separating detector errors
+from classifier errors. In the normal YOLO-gated pipeline, Sphynx, Boxer, and
+Dalmatian were missed by the detector. When the classifier was run directly on
+the raw image, it still predicted the correct breed with high confidence. That
+means those failures were detector-gate failures, not Swin classifier failures.
+
+## Official test follow-up
+
+The same corrected `stage3_last_norm1` visualization code was rerun on the 143
+labelled official-test images. Aggregate metrics and confusion matrices are
+documented in the
+[official-test stage3 report](../swin_tiny_official_test_stage3/README.md).
+
+The full private artifact archives produced during this analysis were:
+
+- `swin_official_test_stage3_full.tar.gz`: 143 official-test panels, overlays,
+  heatmaps, metadata, and evaluation files.
+- `swin_gradcam_stage3_20.tar.gz`: the corrected 20-class qualitative demo
+  panels, overlays, heatmaps, metadata, and raw heatmap arrays.
 
 ## Limitations
 
-- The 906-image split was used both for model selection and threshold
-  calibration; there is no independent held-out test estimate here.
+- The 906-image validation split was used both for model selection and
+  threshold calibration; there is no independent held-out validation estimate
+  here.
 - The experiment uses only the 4,534 available images, not the complete
   5,432-row manifest.
 - One intentionally selected image per class is useful for inspection but is
   not a representative quantitative Grad-CAM evaluation.
-- Grad-CAM is a coarse localization diagnostic, not a causal explanation.
-- The raw-image fallback panels are an ablation and do not represent the normal
-  YOLO-gated inference path.
-- The displayed panels use the legacy edge-biased target layer and must be
-  regenerated with `stage3_last_norm1` before drawing localization conclusions.
-  
+- Grad-CAM is a coarse localization diagnostic, not a causal explanation or
+  object segmentation mask.
+- Raw fallback changes the preprocessing path and should be reported
+  separately from the normal YOLO-gated inference path.
+
 ## Reproduction
 
 See the main [Swin-Tiny Grad-CAM guide](../../gradcam_swin.md) for local and
-Slurm commands. The report was generated with confidence threshold `0.50`,
-target class `predicted`, and target layer `last_block_norm1`.
-
+Slurm commands. The corrected outputs were generated with confidence threshold
+`0.50`, target class `predicted`, and target layer `stage3_last_norm1`.
