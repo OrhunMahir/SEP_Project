@@ -1,0 +1,27 @@
+{
+  "experiment_name": "efficientnet_b0_pretrained_yolo_crop_padded_50ep",
+  "seed": 42,
+  "model": {
+    "name": "efficientnet_b0",
+    "num_outputs": 21,
+    "dropout": 0.2,
+    "pretrained": true
+  },
+  "data": {
+    "image_size": 224,
+    "batch_size": 32,
+    "num_workers": 4,
+    "train_split": "splits/train_seed42.csv",
+    "validation_split": "splits/val_seed42.csv",
+    "image_root": "runs/efficientnet_b0_pretrained_yolo_crop_padded/yolo_crops"
+  },
+  "training": {
+    "max_epochs": 50,
+    "warmup_epochs": 5,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "label_smoothing": 0.1,
+    "early_stopping_patience": 12
+  },
+  "output_dir": "runs/efficientnet_b0_pretrained_yolo_crop_padded_50ep"
+}
