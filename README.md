@@ -242,7 +242,31 @@ The documented official evaluation results are in:
 docs/official_test_set_results.md
 ```
 
-### 6. Generate Custom CNN Grad-CAM Visualizations
+### 6. Run the Robustness Benchmark
+
+The evaluation-only robustness workflow measures clean and corrupted
+validation performance across blur, noise, brightness, contrast, JPEG
+compression, and occlusion. It supports both individual checkpoints and
+weighted ensembles:
+
+```bash
+python scripts/evaluate_robustness.py \
+  --config configs/resnet18_pretrained_yolo_crop_padded_50ep.json \
+  --checkpoint runs/resnet18_pretrained_yolo_crop_padded_50ep/best.pt \
+  --config configs/efficientnet_b0_pretrained_yolo_crop_padded_50ep.json \
+  --checkpoint runs/efficientnet_b0_pretrained_yolo_crop_padded_50ep/best.pt \
+  --config configs/swin_tiny_pretrained_yolo_crop_padded_50ep.json \
+  --checkpoint runs/swin_tiny_pretrained_yolo_crop_padded_50ep/best.pt \
+  --weights 0.35,0.35,0.30 \
+  --threshold 0.30 \
+  --device cuda \
+  --output-dir runs/pretrained_50ep_robustness
+```
+
+See `docs/robustness_benchmark.md` for the corruption definitions,
+reproducibility details, generated report artifacts, and interpretation guide.
+
+### 7. Generate Custom CNN Grad-CAM Visualizations
 
 Use the same checkpoint/config pair as the final Custom CNN model:
 
@@ -271,6 +295,8 @@ as `--dataset-root`. The script creates one Grad-CAM image per target breed and
   `docs/official_test_set_results.md`
 - Grad-CAM artifacts:
   `docs/gradcam_outputs/`
+- Robustness benchmark methodology and usage:
+  `docs/robustness_benchmark.md`
 
 ## Notes on Large Artifacts
 
