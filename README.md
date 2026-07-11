@@ -242,7 +242,24 @@ The documented official evaluation results are in:
 docs/official_test_set_results.md
 ```
 
-### 6. Generate Custom CNN Grad-CAM Visualizations
+### 6. Generate a Model Failure Report
+
+After labelled evaluation, turn `predictions.csv` into a detailed error report
+with class confusions, false accepts/rejects, confidence calibration plots, and
+an optional high-confidence failure gallery:
+
+```bash
+python scripts/generate_failure_report.py \
+  --predictions runs/official_pretrained_50ep_ensemble_cpu/predictions.csv \
+  --image-root /absolute/path/to/official_validation_images \
+  --high-confidence-threshold 0.80 \
+  --output-dir runs/official_pretrained_50ep_ensemble_cpu/failure_analysis
+```
+
+See `docs/model_failure_analysis.md` for the input contract, generated
+artifacts, failure categories, and confidence interpretation.
+
+### 7. Generate Custom CNN Grad-CAM Visualizations
 
 Use the same checkpoint/config pair as the final Custom CNN model:
 
@@ -271,6 +288,8 @@ as `--dataset-root`. The script creates one Grad-CAM image per target breed and
   `docs/official_test_set_results.md`
 - Grad-CAM artifacts:
   `docs/gradcam_outputs/`
+- Model failure analysis methodology and usage:
+  `docs/model_failure_analysis.md`
 
 ## Notes on Large Artifacts
 
