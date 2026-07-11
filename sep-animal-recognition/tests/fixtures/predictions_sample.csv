@@ -1,0 +1,9 @@
+filename,prediction,confidence,seconds,label
+images/abyssinian_01.jpg,0,0.940000,0.021,0
+images/abyssinian_02.jpg,1,0.880000,0.020,0
+images/bengal_01.jpg,1,0.910000,0.022,1
+images/bengal_02.jpg,0,0.730000,0.019,1
+images/bombay_01.jpg,-1,0.420000,0.020,3
+images/reject_01.jpg,2,0.860000,0.018,-1
+images/reject_02.jpg,-1,0.790000,0.019,-1
+images/pug_01.jpg,11,0.970000,0.021,11
