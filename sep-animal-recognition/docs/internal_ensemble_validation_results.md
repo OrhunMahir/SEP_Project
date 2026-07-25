@@ -24,14 +24,9 @@ Both ensembles use the same preprocessing pipeline:
 | Pretrained 50ep ensemble | 0.9701 | 0.9125 | 0.9404 | 320 | 28 | 9 |
 | Scratch 100ep ensemble | 0.7726 | 0.7750 | 0.7738 | 320 | 72 | 73 |
 
-## Source Files
+## Reproduction
 
-The table above was copied from the `best_ensemble` entries in:
-
-```text
-/Users/orhun/Desktop/SEP_Project/Confmatrix/Ensemble/Pretrained_50ep_Results/ensemble_resnet18_efficientnet_b0_swin_tiny_pretrained_padded_50ep/ensemble_summary.json
-/Users/orhun/Desktop/SEP_Project/Confmatrix/Ensemble/Scratch_100ep_Results/ensemble_custom_cnn_resnet18_efficientnet_b0_scratch_padded_100ep/ensemble_summary.json
-```
-
-The same source files also contain all tested weight/threshold candidates and
-the confusion-matrix output paths for the selected ensembles.
+Run `scripts/evaluate_ensemble.py` as documented in the submission README.
+Each new run writes its complete candidate grid, selected `best_ensemble`,
+confusion matrix, and per-class outputs to the requested project-relative
+`runs/` directory.

@@ -12,7 +12,7 @@
     "num_workers": 4,
     "train_split": "splits/train_seed42.csv",
     "validation_split": "splits/val_seed42.csv",
-    "image_root": "runs/custom_cnn_yolo_crop_padded_medium_aug/yolo_crops"
+    "image_root": "runs/yolo_crops_final"
   },
   "augmentation": {
     "random_resized_crop_scale": [0.65, 1.0],

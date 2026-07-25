@@ -13,7 +13,7 @@
     "num_workers": 4,
     "train_split": "splits/train_seed42.csv",
     "validation_split": "splits/val_seed42.csv",
-    "image_root": "runs/efficientnet_b0_pretrained_yolo_crop_padded/yolo_crops"
+    "image_root": "runs/yolo_crops_final"
   },
   "training": {
     "max_epochs": 50,

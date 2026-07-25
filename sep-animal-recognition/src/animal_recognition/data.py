@@ -58,7 +58,12 @@ def training_transform(
     """Return the controlled augmentations used only for training images."""
     config = augmentation_config or {}
     crop_scale = tuple(config.get("random_resized_crop_scale", (0.75, 1.0)))
-    crop_ratio = tuple(config.get("crop_aspect_ratio", (0.75, 1.3333333333333333)))
+    crop_ratio = tuple(
+        config.get(
+            "random_resized_crop_ratio",
+            config.get("crop_aspect_ratio", (0.75, 1.3333333333333333)),
+        )
+    )
     color_jitter_probability = float(config.get("color_jitter_probability", 1.0))
     random_grayscale_probability = float(config.get("random_grayscale_probability", 0.0))
     random_perspective_probability = float(config.get("random_perspective_probability", 0.0))
@@ -84,7 +89,12 @@ def training_transform(
     if random_perspective_probability > 0.0:
         transform_steps.append(
             transforms.RandomPerspective(
-                distortion_scale=float(config.get("perspective_distortion", 0.10)),
+                distortion_scale=float(
+                    config.get(
+                        "random_perspective_distortion",
+                        config.get("perspective_distortion", 0.10),
+                    )
+                ),
                 p=random_perspective_probability,
             )
         )
@@ -96,7 +106,18 @@ def training_transform(
         transform_steps.append(
             transforms.RandomErasing(
                 p=random_erasing_probability,
-                scale=tuple(config.get("erasing_scale", (0.02, 0.10))),
+                scale=tuple(
+                    config.get(
+                        "random_erasing_scale",
+                        config.get("erasing_scale", (0.02, 0.10)),
+                    )
+                ),
+                ratio=tuple(
+                    config.get(
+                        "random_erasing_ratio",
+                        config.get("erasing_ratio", (0.3, 3.3)),
+                    )
+                ),
             )
         )
     return transforms.Compose(transform_steps)

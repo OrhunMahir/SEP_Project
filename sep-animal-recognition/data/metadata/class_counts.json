@@ -1,0 +1,23 @@
+{
+  "Abyssinian": 200,
+  "Bengal": 200,
+  "Birman": 200,
+  "Bombay": 200,
+  "British_Shorthair": 200,
+  "Maine_Coon": 200,
+  "Ragdoll": 200,
+  "Sphynx": 200,
+  "Tabby": 200,
+  "Tiger_Cat": 200,
+  "Beagle": 200,
+  "Pug": 200,
+  "Boxer": 200,
+  "Shiba_Inu": 200,
+  "Samoyed": 200,
+  "Golden_Retriever": 150,
+  "German_Shepherd": 152,
+  "Siberian_Husky": 192,
+  "Dalmatian": 186,
+  "Rottweiler": 152,
+  "reject": 1600
+}
