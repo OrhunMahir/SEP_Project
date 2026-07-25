@@ -10,15 +10,16 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
+if TYPE_CHECKING:
+    from torchvision import transforms
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 NORMALIZE_MEAN = (0.485, 0.456, 0.406)
