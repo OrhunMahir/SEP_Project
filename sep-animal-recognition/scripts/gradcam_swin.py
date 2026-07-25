@@ -27,7 +27,6 @@ from torchvision.models import swin_t
 from animal_recognition.constants import (
     CLASSES,
     NUM_OUTPUTS,
-    REJECT_EXTERNAL,
     REJECT_INTERNAL,
     external_to_internal,
     internal_to_external,
