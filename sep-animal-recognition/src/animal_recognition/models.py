@@ -52,6 +52,94 @@ class DoubleConvBNReLUPool(nn.Module):
         return self.layers(inputs)
 
 
+class TripleConvBNReLUPool(nn.Module):
+    """Three 3x3 convolution layers followed by max-pooling."""
+
+    def __init__(self, in_channels: int, out_channels: int) -> None:
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.layers(inputs)
+
+
+class DoubleConvKernelPool(nn.Module):
+    """Two same-size convolution layers with a configurable odd kernel."""
+
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int) -> None:
+        super().__init__()
+        if kernel_size <= 0 or kernel_size % 2 == 0:
+            raise ValueError("kernel_size must be a positive odd integer.")
+        padding = kernel_size // 2
+        self.layers = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=padding),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, padding=padding),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.layers(inputs)
+
+
+class SqueezeExcitation(nn.Module):
+    """Lightweight channel attention used in the SE ablation."""
+
+    def __init__(self, channels: int, reduction: int = 16) -> None:
+        super().__init__()
+        if reduction <= 0:
+            raise ValueError("reduction must be positive.")
+        hidden_channels = max(channels // reduction, 1)
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.excitation = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(channels, hidden_channels),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_channels, channels),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        weights = self.excitation(self.pool(inputs)).view(
+            inputs.shape[0], inputs.shape[1], 1, 1
+        )
+        return inputs * weights
+
+
+class DoubleConvSEPool(nn.Module):
+    """Two convolution layers, SE attention, and max-pooling."""
+
+    def __init__(self, in_channels: int, out_channels: int, reduction: int) -> None:
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            SqueezeExcitation(out_channels, reduction),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.layers(inputs)
+
+
 class CustomCNN(nn.Module):
     """Four-block CNN baseline trained entirely from random initialization."""
 
@@ -101,6 +189,124 @@ class CustomCNN8Conv(nn.Module):
         return self.classifier(self.dropout(pooled))
 
 
+class CustomCNN12Conv(nn.Module):
+    """Four-block, twelve-convolution depth ablation."""
+
+    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.3) -> None:
+        super().__init__()
+        if num_outputs != NUM_OUTPUTS:
+            raise ValueError(
+                f"CustomCNN12Conv requires {NUM_OUTPUTS} outputs, received {num_outputs}."
+            )
+        self.features = nn.Sequential(
+            TripleConvBNReLUPool(3, 32),
+            TripleConvBNReLUPool(32, 64),
+            TripleConvBNReLUPool(64, 128),
+            TripleConvBNReLUPool(128, 256),
+        )
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(dropout)
+        self.classifier = nn.Linear(256, num_outputs)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        features = self.features(inputs)
+        pooled = self.global_pool(features).flatten(start_dim=1)
+        return self.classifier(self.dropout(pooled))
+
+
+class CustomCNN8ConvKernel(nn.Module):
+    """Eight-convolution kernel-size ablation."""
+
+    def __init__(
+        self,
+        num_outputs: int = NUM_OUTPUTS,
+        dropout: float = 0.3,
+        kernel_size: int = 5,
+    ) -> None:
+        super().__init__()
+        if num_outputs != NUM_OUTPUTS:
+            raise ValueError(
+                f"CustomCNN8ConvKernel requires {NUM_OUTPUTS} outputs, received {num_outputs}."
+            )
+        self.features = nn.Sequential(
+            DoubleConvKernelPool(3, 32, kernel_size),
+            DoubleConvKernelPool(32, 64, kernel_size),
+            DoubleConvKernelPool(64, 128, kernel_size),
+            DoubleConvKernelPool(128, 256, kernel_size),
+        )
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(dropout)
+        self.classifier = nn.Linear(256, num_outputs)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        features = self.features(inputs)
+        pooled = self.global_pool(features).flatten(start_dim=1)
+        return self.classifier(self.dropout(pooled))
+
+
+class CustomCNN8ConvWide(nn.Module):
+    """Eight-convolution width ablation."""
+
+    def __init__(
+        self,
+        num_outputs: int = NUM_OUTPUTS,
+        dropout: float = 0.3,
+        channels: tuple[int, int, int, int] = (48, 96, 192, 384),
+    ) -> None:
+        super().__init__()
+        if num_outputs != NUM_OUTPUTS:
+            raise ValueError(
+                f"CustomCNN8ConvWide requires {NUM_OUTPUTS} outputs, received {num_outputs}."
+            )
+        if len(channels) != 4 or any(channel <= 0 for channel in channels):
+            raise ValueError("channels must contain four positive integers.")
+        c1, c2, c3, c4 = channels
+        self.features = nn.Sequential(
+            DoubleConvBNReLUPool(3, c1),
+            DoubleConvBNReLUPool(c1, c2),
+            DoubleConvBNReLUPool(c2, c3),
+            DoubleConvBNReLUPool(c3, c4),
+        )
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(dropout)
+        self.classifier = nn.Linear(c4, num_outputs)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        features = self.features(inputs)
+        pooled = self.global_pool(features).flatten(start_dim=1)
+        return self.classifier(self.dropout(pooled))
+
+
+class CustomCNN8ConvSE(nn.Module):
+    """Eight-convolution squeeze-and-excitation ablation."""
+
+    def __init__(
+        self,
+        num_outputs: int = NUM_OUTPUTS,
+        dropout: float = 0.3,
+        reduction: int = 16,
+    ) -> None:
+        super().__init__()
+        if num_outputs != NUM_OUTPUTS:
+            raise ValueError(
+                f"CustomCNN8ConvSE requires {NUM_OUTPUTS} outputs, received {num_outputs}."
+            )
+        self.features = nn.Sequential(
+            DoubleConvSEPool(3, 32, reduction),
+            DoubleConvSEPool(32, 64, reduction),
+            DoubleConvSEPool(64, 128, reduction),
+            DoubleConvSEPool(128, 256, reduction),
+        )
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(dropout)
+        self.classifier = nn.Linear(256, num_outputs)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        features = self.features(inputs)
+        pooled = self.global_pool(features).flatten(start_dim=1)
+        return self.classifier(self.dropout(pooled))
+
+
 class ResidualBlock(nn.Module):
     """The two-convolution basic residual block used by ResNet-18."""
 
@@ -133,13 +339,21 @@ class ResidualBlock(nn.Module):
         return self.activation(features + residual)
 
 
-class ResNet18(nn.Module):
-    """Standard ResNet-18 trained from random initialization for 21 outputs."""
+class ScratchResNet(nn.Module):
+    """Configurable basic-block ResNet trained from random initialization."""
 
-    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.0) -> None:
+    def __init__(
+        self,
+        blocks: tuple[int, int, int, int],
+        num_outputs: int = NUM_OUTPUTS,
+        dropout: float = 0.0,
+        model_name: str = "ScratchResNet",
+    ) -> None:
         super().__init__()
         if num_outputs != NUM_OUTPUTS:
-            raise ValueError(f"ResNet18 requires {NUM_OUTPUTS} outputs, received {num_outputs}.")
+            raise ValueError(
+                f"{model_name} requires {NUM_OUTPUTS} outputs, received {num_outputs}."
+            )
         if not 0.0 <= dropout < 1.0:
             raise ValueError("dropout must be in the interval [0.0, 1.0).")
 
@@ -150,10 +364,10 @@ class ResNet18(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         )
         self.in_channels = 64
-        self.layer_1 = self._make_layer(64, blocks=2, stride=1)
-        self.layer_2 = self._make_layer(128, blocks=2, stride=2)
-        self.layer_3 = self._make_layer(256, blocks=2, stride=2)
-        self.layer_4 = self._make_layer(512, blocks=2, stride=2)
+        self.layer_1 = self._make_layer(64, blocks=blocks[0], stride=1)
+        self.layer_2 = self._make_layer(128, blocks=blocks[1], stride=2)
+        self.layer_3 = self._make_layer(256, blocks=blocks[2], stride=2)
+        self.layer_4 = self._make_layer(512, blocks=blocks[3], stride=2)
         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(512, num_outputs)
@@ -172,6 +386,30 @@ class ResNet18(nn.Module):
         features = self.layer_4(features)
         pooled = self.global_pool(features).flatten(start_dim=1)
         return self.classifier(self.dropout(pooled))
+
+
+class ResNet18(ScratchResNet):
+    """Standard ResNet-18 trained from random initialization for 21 outputs."""
+
+    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.0) -> None:
+        super().__init__(
+            blocks=(2, 2, 2, 2),
+            num_outputs=num_outputs,
+            dropout=dropout,
+            model_name="ResNet18",
+        )
+
+
+class ResNet34(ScratchResNet):
+    """Standard ResNet-34 depth ablation trained from random initialization."""
+
+    def __init__(self, num_outputs: int = NUM_OUTPUTS, dropout: float = 0.0) -> None:
+        super().__init__(
+            blocks=(3, 4, 6, 3),
+            num_outputs=num_outputs,
+            dropout=dropout,
+            model_name="ResNet34",
+        )
 
 
 class ResNet50(nn.Module):
@@ -254,6 +492,27 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
         if pretrained:
             raise ValueError("CustomCNN8Conv does not support pretrained initialization.")
         return CustomCNN8Conv(num_outputs=num_outputs, dropout=dropout)
+    if model_name == "custom_cnn_12conv":
+        return CustomCNN12Conv(num_outputs=num_outputs, dropout=dropout)
+    if model_name == "custom_cnn_8conv_k5":
+        return CustomCNN8ConvKernel(
+            num_outputs=num_outputs,
+            dropout=dropout,
+            kernel_size=int(model_config.get("kernel_size", 5)),
+        )
+    if model_name == "custom_cnn_8conv_wide":
+        channels = tuple(int(value) for value in model_config.get("channels", (48, 96, 192, 384)))
+        return CustomCNN8ConvWide(
+            num_outputs=num_outputs,
+            dropout=dropout,
+            channels=channels,
+        )
+    if model_name == "custom_cnn_8conv_se":
+        return CustomCNN8ConvSE(
+            num_outputs=num_outputs,
+            dropout=dropout,
+            reduction=int(model_config.get("se_reduction", 16)),
+        )
     if model_name == "resnet18":
         if pretrained:
             model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
@@ -263,6 +522,10 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
             model.fc = classifier
             return model
         return ResNet18(num_outputs=num_outputs, dropout=dropout)
+    if model_name == "resnet34":
+        if pretrained:
+            raise ValueError("The reported ResNet-34 ablation was trained from scratch.")
+        return ResNet34(num_outputs=num_outputs, dropout=dropout)
     if model_name == "resnet50":
         if pretrained:
             raise ValueError("ResNet50 pretrained initialization is not configured.")

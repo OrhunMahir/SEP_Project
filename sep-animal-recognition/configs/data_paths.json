@@ -1,6 +1,6 @@
 {
-  "train_manifest": "/absolute/path/to/dataset/labels.csv",
-  "train_image_root": "/absolute/path/to/dataset/all",
-  "official_validation_root": "/absolute/path/to/official_validation_images",
-  "note": "Replace these placeholder paths with the local or cluster paths before running scripts."
+  "train_manifest": "data/labels.csv",
+  "train_image_root": "dataset/all",
+  "official_validation_root": "official_test",
+  "note": "Paths are resolved from the project directory. Absolute paths are also accepted."
 }

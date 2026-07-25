@@ -63,13 +63,9 @@ Per-class `Accuracy` is computed as one-vs-rest accuracy: `(TP + TN) / all valid
 | Rottweiler | 0.9917 | 0.8182 | 0.9000 | 0.8571 | 30 |
 | reject | 0.8664 | 0.7726 | 0.7750 | 0.7738 | 320 |
 
-## Source Files
+## Reproduction
 
-The per-class metrics above were computed from the selected best-ensemble confusion matrices:
-
-```text
-/Users/orhun/Desktop/SEP_Project/Confmatrix/Ensemble/Pretrained_50ep_Results/ensemble_resnet18_efficientnet_b0_swin_tiny_pretrained_padded_50ep/confusion_matrix_best_ensemble.csv
-/Users/orhun/Desktop/SEP_Project/Confmatrix/Ensemble/Scratch_100ep_Results/ensemble_custom_cnn_resnet18_efficientnet_b0_scratch_padded_100ep/confusion_matrix_best_ensemble.csv
-```
-
-The aggregate best-ensemble metrics are documented in `docs/internal_ensemble_validation_results.md`.
+The per-class tables are recreated by `scripts/evaluate_ensemble.py` as
+`per_class_metrics_best_ensemble.csv` and
+`per_class_metrics_best_ensemble.json`. Aggregate metrics are documented in
+`docs/internal_ensemble_validation_results.md`.
