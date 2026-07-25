@@ -436,24 +436,15 @@ python -m unittest discover -s tests -p "test_*.py"
 python -m compileall -q src scripts inference.py gradcam_custom_cnn
 ```
 
-## 9. Reproducibility clarifications
+## 9. Reproducibility clarification
 
-Two report wordings need to be read carefully when comparing the PDF with the
-implemented final pipeline:
+Report Table 3 contains per-class metrics for the 1,085-image internal
+validation set. It is not the 143-image held-out table. The held-out target
+classes contain only about 4–6 images each, so their individual class
+estimates are much less stable.
 
-1. The final pretrained Swin-Tiny configuration fine-tunes the complete
-   ImageNet-pretrained network (27,535,503 trainable parameters). The paragraph
-   in report Section 3.5.3 that says the last-stage-only 14.2M configuration
-   was selected is inconsistent with the final config, checkpoint summary, and
-   result files. The commands in this README reproduce the implemented final
-   full-fine-tuning run.
-2. Report Table 3 contains per-class metrics for the 1,085-image internal
-   validation set. It is not the 143-image held-out table. The held-out target
-   classes contain only about 4–6 images each, so their individual class
-   estimates are much less stable.
-
-The held-out aggregate metrics in the report and `docs/official_test_set_results.md`
-are consistent.
+The held-out aggregate metrics in the report and
+`docs/official_test_set_results.md` are consistent.
 
 ## 10. Git state used for the clean copy
 
