@@ -181,7 +181,10 @@ class Model(nn.Module):
                 )
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
             checkpoint_config = checkpoint.get("config", config)
-            model = build_model(checkpoint_config["model"]).to(self.device)
+            model = build_model(
+                checkpoint_config["model"],
+                initialize_pretrained=False,
+            ).to(self.device)
             model.load_state_dict(checkpoint["model_state_dict"])
             model.eval()
             self.models.append(model)

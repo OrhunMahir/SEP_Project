@@ -478,8 +478,17 @@ class SwinTiny(nn.Module):
         return self.network(inputs)
 
 
-def build_model(model_config: dict[str, object]) -> nn.Module:
-    """Build a supported model from an experiment configuration."""
+def build_model(
+    model_config: dict[str, object],
+    *,
+    initialize_pretrained: bool = True,
+) -> nn.Module:
+    """Build a supported model from an experiment configuration.
+
+    ``initialize_pretrained`` should be disabled when a complete project
+    checkpoint will immediately be loaded.  This preserves the architecture
+    selected by ``pretrained`` without downloading redundant ImageNet weights.
+    """
     model_name = str(model_config["name"])
     num_outputs = int(model_config["num_outputs"])
     dropout = float(model_config.get("dropout", 0.0))
@@ -515,7 +524,8 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
         )
     if model_name == "resnet18":
         if pretrained:
-            model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+            weights = ResNet18_Weights.IMAGENET1K_V1 if initialize_pretrained else None
+            model = resnet18(weights=weights)
             classifier: nn.Module = nn.Linear(model.fc.in_features, num_outputs)
             if dropout > 0.0:
                 classifier = nn.Sequential(nn.Dropout(dropout), classifier)
@@ -532,14 +542,16 @@ def build_model(model_config: dict[str, object]) -> nn.Module:
         return ResNet50(num_outputs=num_outputs, dropout=dropout)
     if model_name == "efficientnet_b0":
         if pretrained:
-            model = efficientnet_b0(weights=EfficientNet_B0_Weights.IMAGENET1K_V1, dropout=dropout)
+            weights = EfficientNet_B0_Weights.IMAGENET1K_V1 if initialize_pretrained else None
+            model = efficientnet_b0(weights=weights, dropout=dropout)
             model.classifier[1] = nn.Linear(model.classifier[1].in_features, num_outputs)
             return model
         return EfficientNetB0(num_outputs=num_outputs, dropout=dropout)
     if model_name == "swin_tiny":
         if pretrained:
+            weights = Swin_T_Weights.IMAGENET1K_V1 if initialize_pretrained else None
             model = swin_t(
-                weights=Swin_T_Weights.IMAGENET1K_V1,
+                weights=weights,
                 dropout=dropout,
                 attention_dropout=float(model_config.get("attention_dropout", 0.0)),
             )

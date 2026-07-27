@@ -154,7 +154,10 @@ def collect_validation_probabilities(
     if checkpoint.get("model_name") != checkpoint_config["model"]["name"]:
         raise ValueError(f"Checkpoint model name does not match: {resolved_checkpoint}")
 
-    model = build_model(checkpoint_config["model"]).to(device)
+    model = build_model(
+        checkpoint_config["model"],
+        initialize_pretrained=False,
+    ).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
