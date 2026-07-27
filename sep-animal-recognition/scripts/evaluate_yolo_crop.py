@@ -102,7 +102,10 @@ def main() -> None:
     checkpoint_path = args.checkpoint or resolve_project_path(config["output_dir"]) / "best.pt"
     checkpoint = torch.load(checkpoint_path, map_location=classifier_device)
     checkpoint_config = checkpoint["config"]
-    classifier = build_model(checkpoint_config["model"]).to(classifier_device)
+    classifier = build_model(
+        checkpoint_config["model"],
+        initialize_pretrained=False,
+    ).to(classifier_device)
     classifier.load_state_dict(checkpoint["model_state_dict"])
     classifier.eval()
 

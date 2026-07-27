@@ -183,7 +183,10 @@ def load_model(config_path: Path, checkpoint_path: Path, device: torch.device) -
     config = read_json(config_path)
     checkpoint = torch.load(checkpoint_path, map_location=device)
     checkpoint_config = checkpoint.get("config", config)
-    model = build_model(checkpoint_config["model"]).to(device)
+    model = build_model(
+        checkpoint_config["model"],
+        initialize_pretrained=False,
+    ).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
     return model, checkpoint

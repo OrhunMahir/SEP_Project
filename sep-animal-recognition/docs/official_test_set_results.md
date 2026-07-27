@@ -1,10 +1,7 @@
 # Official Test Set Results
 
-These results were computed on the instructor-provided labelled evaluation image set:
-
-```text
-~/projects/SEP_Project_code/official_validation_images
-```
+These results were computed on the instructor-provided labelled evaluation
+image set. Its machine-specific local filesystem path is intentionally omitted.
 
 This set contains `143` images and a `labels.csv` file. It is separate from the internal train/validation split used for model selection and threshold tuning. The fixed ensemble weights and thresholds selected on internal validation were applied here without retuning.
 

@@ -31,8 +31,9 @@ SEP_Final_Submission/
 ```
 
 There is exactly one README in the submission. Editor state, temporary logs,
-machine-specific cluster wrappers, local absolute paths, cached crops, and
-generated model checkpoints are excluded.
+machine-specific cluster wrappers, local absolute paths, and cached crops are
+excluded. The six final checkpoints are provided separately through the
+verified download link in Section 3 because of their size.
 
 ## Reported final systems
 
@@ -53,7 +54,7 @@ Expected metrics:
 |---|---|---:|---:|---:|
 | Scratch ensemble | internal validation, 1,085 images | 0.8230 | 0.8384 | 0.7738 |
 | Pretrained ensemble | internal validation, 1,085 images | 0.9548 | 0.9595 | 0.9404 |
-| Scratch ensemble | isolated held-out set, 143 images | 0.6853 | 0.6396 | 0.7727 |
+| Scratch ensemble | isolated held-out set, 143 images | 0.6853 | 0.6396 | 0.7451 |
 | Pretrained ensemble | isolated held-out set, 143 images | 0.7902 | 0.7695 | 0.8605 |
 
 The recorded outputs and per-class tables are in `docs/`.
@@ -94,7 +95,8 @@ python scripts/verify_submission.py
 ```
 
 Warnings about absent data or six absent final checkpoints are expected before
-the data and training steps. Structural failures are not expected.
+the data and checkpoint-download or training steps. Structural failures are
+not expected.
 
 ## 2. Data
 
@@ -193,7 +195,33 @@ images, so each epoch samples 120 images from every one of the 21 classes
 (2,520 samples per epoch). This prevents the 1,280 training reject images from
 dominating optimization.
 
-## 3. One-command full reproduction
+## 3. Checkpoints and full reproduction
+
+### 3.1 Download the six final checkpoints
+
+All checkpoints used by the scratch and pretrained final ensembles are
+available in one external archive:
+
+<https://syncandshare.lrz.de/dl/fiXZG7pDei98oRGVCKkaCZ/Budakci_Erdag_Degirmenci_Mahirogullari_SEP_Checkpoints.zip>
+
+Archive SHA-256:
+`22c2d68cd4c6fa755c765ae2c19a8990cf0608cf650f3c7499f9ae20daa17e38`.
+
+Download and extract the archive directly inside `sep-animal-recognition/`:
+
+```bash
+curl -L \
+  "https://syncandshare.lrz.de/dl/fiXZG7pDei98oRGVCKkaCZ/Budakci_Erdag_Degirmenci_Mahirogullari_SEP_Checkpoints.zip" \
+  -o Budakci_Erdag_Degirmenci_Mahirogullari_SEP_Checkpoints.zip
+unzip Budakci_Erdag_Degirmenci_Mahirogullari_SEP_Checkpoints.zip -d .
+shasum -a 256 -c SHA256SUMS
+python scripts/verify_submission.py --require-checkpoints
+```
+
+The extracted `runs/` tree matches the paths used by all final configs.
+Checkpoint loading does not redownload ImageNet initialization weights.
+
+### 3.2 Retrain all six final models
 
 The full pipeline creates one shared YOLO crop cache, trains six final models,
 searches both ensemble weights and thresholds, and optionally evaluates the
@@ -214,8 +242,8 @@ DETECTOR_DEVICE=0 \
 ```
 
 This is a full training reproduction, not a short smoke test. Runtime depends
-on GPU model and cluster load. Checkpoints are intentionally not included in
-the submission ZIP; the script recreates them under `runs/`.
+on GPU model and cluster load. The script recreates all six checkpoints under
+`runs/`; downloading the supplied checkpoints is not required for retraining.
 
 ## 4. Manual reproduction
 
@@ -274,7 +302,7 @@ Each training run writes:
 - validation per-class metrics.
 
 The recorded best epochs were Custom CNN 84, scratch ResNet18 85, scratch
-EfficientNet-B0 94, pretrained ResNet18 47, pretrained EfficientNet-B0 31,
+EfficientNet-B0 94, pretrained ResNet18 47, pretrained EfficientNet-B0 30,
 and pretrained Swin-Tiny 29. Small numerical differences may occur across
 PyTorch/CUDA versions even with the deterministic seed settings.
 
@@ -325,14 +353,14 @@ used for model, hyperparameter, threshold, or ensemble selection.
 python scripts/evaluate_official_ensemble.py \
   --image-folder /path/to/official_test \
   --preset scratch_100ep \
-  --output-dir runs/official_scratch_100ep \
+  --output-dir runs/official_scratch_100ep_ensemble_cpu \
   --device cpu \
   --detector-device cpu
 
 python scripts/evaluate_official_ensemble.py \
   --image-folder /path/to/official_test \
   --preset pretrained_50ep \
-  --output-dir runs/official_pretrained_50ep \
+  --output-dir runs/official_pretrained_50ep_ensemble_cpu \
   --device cpu \
   --detector-device cpu
 ```
@@ -421,6 +449,17 @@ python scripts/train_baseline.py --config configs/swin_tiny_scratch.json --devic
 Additional YOLO confidence, padding, image-size, dropout, training-length, and
 pretraining configurations remain in `configs/`.
 
+Auxiliary analysis tools:
+
+- `scripts/audit_data.py` checks manifest paths, class counts, and missing or
+  duplicate files without modifying the dataset.
+- `scripts/calibrate_threshold.py` reproduces a single model's reject-threshold
+  sweep on the fixed internal validation split.
+- `scripts/evaluate_yolo_crop.py` compares raw-image and YOLO-cropped
+  validation inference for a fixed classifier.
+- `scripts/inference_yolo_swin.py` reproduces the standalone YOLO + Swin-Tiny
+  validation pipeline and its recorded metrics.
+
 ## 8. Tests
 
 The manifest tests use only the Python standard library:
@@ -443,15 +482,6 @@ validation set. It is not the 143-image held-out table. The held-out target
 classes contain only about 4–6 images each, so their individual class
 estimates are much less stable.
 
-The held-out aggregate metrics in the report and
-`docs/official_test_set_results.md` are consistent.
-
-## 10. Git state used for the clean copy
-
-The clean submission was based on repository `main` at commit
-`baa8b6487` (`Move final README to repository root`). The former
-`main-deneme` branch is already an ancestor of `main`; no additional merge is
-required. Experimental branches were not merged wholesale because several
-contain superseded or partial implementations. Only report-relevant,
-reproducible Grad-CAM and ablation components were incorporated into this clean
-submission copy.
+The held-out accuracy and macro-F1 values in the report match
+`docs/official_test_set_results.md`. The same results document also records
+reject-class metrics, false accepts, false rejects, and timing measurements.

@@ -435,7 +435,10 @@ def main() -> None:
     config = read_json(args.config) if args.config is not None else checkpoint["config"]
     checkpoint_config = checkpoint.get("config", config)
 
-    model = build_model(checkpoint_config["model"]).to(device)
+    model = build_model(
+        checkpoint_config["model"],
+        initialize_pretrained=False,
+    ).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 

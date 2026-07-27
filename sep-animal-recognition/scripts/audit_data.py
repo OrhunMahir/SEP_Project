@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 def main() -> None:
     # Allow the manifest, image root, and output path to be overridden from the CLI.
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manifest", type=Path, default=PROJECT_ROOT / "dataset" / "labels.csv")
+    parser.add_argument("--manifest", type=Path, default=PROJECT_ROOT / "data" / "labels.csv")
     parser.add_argument("--image-root", type=Path, default=PROJECT_ROOT / "dataset" / "all")
     parser.add_argument("--content-hashes", action="store_true")
     parser.add_argument("--output", type=Path, default=PROJECT_ROOT / "runs" / "data_audit.json")
