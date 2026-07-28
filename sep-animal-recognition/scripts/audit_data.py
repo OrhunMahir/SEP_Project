@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import argparse
 import csv
-from collections import Counter
+from collections import Counter, defaultdict
+import hashlib
 import json
 from pathlib import Path
 
@@ -33,8 +34,31 @@ def main() -> None:
         "missing_files": missing,
         "duplicate_manifest_paths": sorted({path for path, count in Counter(paths).items() if count > 1}),
         "content_hashes_requested": args.content_hashes,
-        "note": "Use src/animal_recognition/data.py::audit_manifest(compute_sha256=True) in the configured ML environment for the optional content-hash pass.",
     }
+
+    if args.content_hashes:
+        groups: dict[str, list[str]] = defaultdict(list)
+        for relative_path in paths:
+            image_path = args.image_root / relative_path
+            if not image_path.is_file():
+                continue
+            digest = hashlib.sha256()
+            with image_path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            groups[digest.hexdigest()].append(relative_path)
+        duplicate_groups = [
+            sorted(group)
+            for group in groups.values()
+            if len(group) > 1
+        ]
+        report.update(
+            {
+                "content_hashes_computed": sum(len(group) for group in groups.values()),
+                "unique_content_hashes": len(groups),
+                "duplicate_content_groups": sorted(duplicate_groups),
+            }
+        )
     # Save only the audit output; never write into the source dataset.
     args.output.parent.mkdir(parents=True, exist_ok=True)
 

@@ -80,7 +80,15 @@ def main() -> None:
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "dataset" / "all")
     parser.add_argument("--oxford-root", type=Path)
     parser.add_argument("--stanford-root", type=Path)
-    parser.add_argument("--animals10-root", type=Path)
+    parser.add_argument(
+        "--animals10-root",
+        type=Path,
+        default=PROJECT_ROOT / "data" / "animals10_selected",
+        help=(
+            "Root containing the exact 296-image Animals-10 subset. "
+            "The verified subset included with the submission is used by default."
+        ),
+    )
     parser.add_argument("--coco-root", type=Path)
     parser.add_argument(
         "--wikimedia-metadata",

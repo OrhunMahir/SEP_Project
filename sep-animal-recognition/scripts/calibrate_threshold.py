@@ -11,6 +11,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
+from animal_recognition.checkpointing import resolve_checkpoint_configs
 from animal_recognition.data import ManifestDataset, evaluation_transform, load_split
 from animal_recognition.metrics import (
     classification_metrics,
@@ -144,17 +145,16 @@ def main() -> None:
         raise RuntimeError("CUDA was requested but is not available.")
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
-    checkpoint_config = checkpoint.get("config", config)
-    if checkpoint.get("model_name") != checkpoint_config["model"]["name"]:
+    model_config, data_config = resolve_checkpoint_configs(checkpoint, config)
+    if checkpoint.get("model_name") != model_config["name"]:
         raise ValueError("Checkpoint model name does not match its saved configuration.")
 
     model = build_model(
-        checkpoint_config["model"],
+        model_config,
         initialize_pretrained=False,
     ).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
 
-    data_config = checkpoint_config["data"]
     image_root = resolve_project_path(
         str(data_config.get("image_root", data_paths["train_image_root"]))
     )
