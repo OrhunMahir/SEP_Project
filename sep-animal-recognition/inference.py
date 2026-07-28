@@ -197,11 +197,14 @@ class Model(nn.Module):
                 raise ValueError("All ensemble models must use the same image size.")
 
         self.transform = build_transform(image_size or 224)
-        self.detector_model = None
+        # Keep the Ultralytics wrapper outside PyTorch's registered child
+        # modules. Otherwise ``Model.eval()`` recurses into ``YOLO.train(False)``,
+        # which Ultralytics interprets as a request to start detector training.
+        object.__setattr__(self, "detector_model", None)
         if self.preprocess == "yolo-crop":
             from ultralytics import YOLO
 
-            self.detector_model = YOLO(detector)
+            object.__setattr__(self, "detector_model", YOLO(detector))
 
     def crop_image(self, image: Image.Image) -> Image.Image:
         if self.detector_model is None:
