@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
+import hashlib
 import json
 from pathlib import Path
 import unittest
@@ -53,6 +54,33 @@ class ManifestIntegrityTests(unittest.TestCase):
         manifest_paths = {row["filename"] for row in self.rows}
         self.assertFalse(train_paths & validation_paths)
         self.assertEqual(train_paths | validation_paths, manifest_paths)
+
+    def test_bundled_animals10_subset_matches_recorded_hashes(self) -> None:
+        expected_hashes = {
+            row["filename"]: row["sha256"]
+            for row in read_rows(
+                PROJECT_ROOT / "data" / "metadata" / "image_sha256.csv"
+            )
+            if "reject_animals10__" in row["filename"]
+        }
+        self.assertEqual(len(expected_hashes), 296)
+
+        for manifest_path, expected_hash in expected_hashes.items():
+            filename = Path(manifest_path).name
+            _, class_name, source_filename = filename.split("__", 2)
+            source_path = (
+                PROJECT_ROOT
+                / "data"
+                / "animals10_selected"
+                / class_name
+                / source_filename
+            )
+            self.assertTrue(source_path.is_file(), source_path)
+            self.assertEqual(
+                hashlib.sha256(source_path.read_bytes()).hexdigest(),
+                expected_hash,
+                source_path,
+            )
 
 
 if __name__ == "__main__":

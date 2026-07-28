@@ -124,13 +124,17 @@ Download and extract:
    <https://www.robots.ox.ac.uk/~vgg/data/pets/>
 2. Stanford Dogs images:
    <http://vision.stanford.edu/aditya86/ImageNetDogs/>
-3. Animals-10:
-   <https://www.kaggle.com/datasets/alessiocorrado99/animals10>
-4. COCO 2017 validation images:
+3. COCO 2017 validation images:
    <https://cocodataset.org/#download>
 
 The exact Wikimedia images do not need to be downloaded manually; their URLs
 are recorded in `data/metadata/wikimedia_sources.json`.
+
+The exact 296-image Animals-10 subset used by the project is included under
+`data/animals10_selected/`. The source, selection, and GPL-2.0 license are
+documented in `data/animals10_selected/SOURCE.md`. Bundling this small subset
+avoids differences between upstream mirrors, renamed source files, and JPEG
+encoder versions while allowing every submitted digest to be reproduced.
 
 ### 2.3 Reconstruct the fixed dataset
 
@@ -140,12 +144,12 @@ Pass the extracted image roots to the materialization script:
 python scripts/materialize_dataset.py \
   --oxford-root /path/to/oxford/images \
   --stanford-root /path/to/stanford/Images \
-  --animals10-root /path/to/animals10/raw-img \
   --coco-root /path/to/coco/val2017
 ```
 
-This copies the selected public-source files to `dataset/all/` and downloads
-the exact recorded Wikimedia files. It never modifies the source datasets.
+This copies the selected public-source files and the included Animals-10 subset
+to `dataset/all/`, then downloads the exact recorded Wikimedia files. It never
+modifies the source datasets.
 
 If the complete project dataset was provided directly, place it as:
 
@@ -220,6 +224,10 @@ python scripts/verify_submission.py --require-checkpoints
 
 The extracted `runs/` tree matches the paths used by all final configs.
 Checkpoint loading does not redownload ImageNet initialization weights.
+The checkpoints retain historical training-data paths in their metadata.
+Calibration and ensemble evaluation intentionally use the current data paths
+from the submitted command-line configs while preserving the saved model
+architecture settings.
 
 ### 3.2 Retrain all six final models
 
@@ -465,7 +473,7 @@ Auxiliary analysis tools:
 The manifest tests use only the Python standard library:
 
 ```bash
-python -m unittest tests/test_manifest_integrity.py
+python -m unittest discover -s tests -p "test_manifest_integrity.py"
 ```
 
 After installing the ML environment:
@@ -485,3 +493,9 @@ estimates are much less stable.
 The held-out accuracy and macro-F1 values in the report match
 `docs/official_test_set_results.md`. The same results document also records
 reject-class metrics, false accepts, false rejects, and timing measurements.
+
+The Oxford-IIIT Pet source contains 16 duplicate-content groups in the fixed
+manifest. Eight groups, all within the Bombay class, cross the historical
+train/validation boundary. The submitted split is retained so that the
+reported experiments remain exactly reproducible; this small overlap should be
+considered when interpreting internal-validation performance.

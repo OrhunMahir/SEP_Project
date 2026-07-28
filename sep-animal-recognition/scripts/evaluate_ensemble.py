@@ -11,6 +11,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
+from animal_recognition.checkpointing import resolve_checkpoint_configs
 from animal_recognition.data import ManifestDataset, evaluation_transform, load_split
 from animal_recognition.metrics import (
     classification_metrics,
@@ -150,19 +151,18 @@ def collect_validation_probabilities(
         raise FileNotFoundError(f"Checkpoint was not found: {resolved_checkpoint}")
 
     checkpoint = torch.load(resolved_checkpoint, map_location=device)
-    checkpoint_config = checkpoint.get("config", config)
-    if checkpoint.get("model_name") != checkpoint_config["model"]["name"]:
+    model_config, data_config = resolve_checkpoint_configs(checkpoint, config)
+    if checkpoint.get("model_name") != model_config["name"]:
         raise ValueError(f"Checkpoint model name does not match: {resolved_checkpoint}")
 
     model = build_model(
-        checkpoint_config["model"],
+        model_config,
         initialize_pretrained=False,
     ).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     data_paths = read_json(PROJECT_ROOT / "configs" / "data_paths.json")
-    data_config = checkpoint_config["data"]
     image_root = resolve_project_path(
         str(data_config.get("image_root", data_paths["train_image_root"]))
     )

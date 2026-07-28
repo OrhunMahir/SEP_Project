@@ -23,10 +23,16 @@ reject label.
 The 1,600 reject images combine:
 
 - non-target breeds from Stanford Dogs;
-- non-cat/dog classes from Animals-10;
+- 296 fixed images from eight non-cat/dog Animals-10 classes;
 - generic scenes from COCO val2017.
 
-Animals-10: <https://www.kaggle.com/datasets/alessiocorrado99/animals10>
+The exact Animals-10 subset is included in `data/animals10_selected/`.
+It was selected from the cleaned Rapidata mirror:
+<https://huggingface.co/datasets/Rapidata/Animals-10>.
+The original dataset is:
+<https://www.kaggle.com/datasets/alessiocorrado99/animals10>.
+Both sources identify the license as GPL-2.0; attribution and a license copy
+are included with the selected files.
 
 COCO: <https://cocodataset.org/#download>
 
@@ -37,10 +43,13 @@ COCO: <https://cocodataset.org/#download>
 - `data/metadata/class_counts.json`: expected class counts.
 - `data/metadata/wikimedia_sources.json`: exact selected Wikimedia URLs.
 - `data/metadata/image_sha256.csv`: expected SHA-256 digest of each final image.
+- `data/animals10_selected/`: exact bundled Animals-10 reject subset, source
+  notice, and GPL-2.0 license.
 
 `scripts/materialize_dataset.py` reconstructs the expected `dataset/all`
-layout from extracted source datasets and downloads the exact Wikimedia files.
-The script copies source images; it does not alter the original datasets.
+layout from extracted source datasets, the included Animals-10 subset, and the
+exact Wikimedia URLs. The script copies source images; it does not alter the
+original datasets.
 
 The public datasets retain their original licenses. Wikimedia files have
 per-file licenses; use their source pages for attribution when redistributing
